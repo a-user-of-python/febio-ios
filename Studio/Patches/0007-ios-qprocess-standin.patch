@@ -1,0 +1,157 @@
+diff --git a/FEBioStudio/FEBioBatchDoc.h b/FEBioStudio/FEBioBatchDoc.h
+index 9e3f86f..a0e49be 100644
+--- a/FEBioStudio/FEBioBatchDoc.h
++++ b/FEBioStudio/FEBioBatchDoc.h
+@@ -26,6 +26,7 @@ SOFTWARE.*/
+ #pragma once
+ #include "Document.h"
+ #include <QProcess>
++#include "iOSQProcess.h" // iOS port (patch 0007): QProcess stand-in
+ 
+ class CMainWindow;
+ 
+diff --git a/FEBioStudio/FEBioJobManager.h b/FEBioStudio/FEBioJobManager.h
+index 763b96d..0078ad3 100644
+--- a/FEBioStudio/FEBioJobManager.h
++++ b/FEBioStudio/FEBioJobManager.h
+@@ -26,6 +26,7 @@ SOFTWARE.*/
+ #pragma once
+ #include <QObject>
+ #include <QProcess>
++#include "iOSQProcess.h" // iOS port (patch 0007): QProcess stand-in
+ #include <QDialog>
+ 
+ class CMainWindow;
+diff --git a/FEBioStudio/FEBioThread.h b/FEBioStudio/FEBioThread.h
+index 4f844a8..01d00d6 100644
+--- a/FEBioStudio/FEBioThread.h
++++ b/FEBioStudio/FEBioThread.h
+@@ -25,6 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.*/
+ #pragma once
+ #include <QProcess> // for QProcess::ExitStatus
++#include "iOSQProcess.h" // iOS port (patch 0007): QProcess stand-in
+ #include <QThread>
+ #include <QtCore>
+ #include "CustomThread.h"
+diff --git a/FEBioStudio/LocalJobProcess.h b/FEBioStudio/LocalJobProcess.h
+index 8554738..4f71dbc 100644
+--- a/FEBioStudio/LocalJobProcess.h
++++ b/FEBioStudio/LocalJobProcess.h
+@@ -25,6 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.*/
+ #pragma once
+ #include <QProcess>
++#include "iOSQProcess.h" // iOS port (patch 0007): QProcess stand-in
+ #include <QtCore/QString>
+ 
+ class CMainWindow;
+diff --git a/FEBioStudio/MainWindow.h b/FEBioStudio/MainWindow.h
+index bdaf901..2a24abc 100644
+--- a/FEBioStudio/MainWindow.h
++++ b/FEBioStudio/MainWindow.h
+@@ -28,6 +28,7 @@ SOFTWARE.*/
+ #include <QMainWindow>
+ #include <QCloseEvent>
+ #include <QtCore/QProcess>
++#include "iOSQProcess.h" // iOS port (patch 0007): QProcess stand-in
+ #include <FSCore/box.h>
+ #include <FEMLib/GMaterial.h>
+ #include <FSCore/math3d.h>
+diff --git a/FEBioStudio/ProjectViewer.h b/FEBioStudio/ProjectViewer.h
+index cf63937..f642e5c 100644
+--- a/FEBioStudio/ProjectViewer.h
++++ b/FEBioStudio/ProjectViewer.h
+@@ -28,6 +28,7 @@ SOFTWARE.*/
+ #include <QWidget>
+ #include <vector>
+ #include <QProcess>
++#include "iOSQProcess.h" // iOS port (patch 0007): QProcess stand-in
+ 
+ class QTreeWidgetItem;
+ class CMainWindow;
+diff --git a/FEBioStudio/iOSQProcess.h b/FEBioStudio/iOSQProcess.h
+new file mode 100644
+index 0000000..e6ca7ea
+--- /dev/null
++++ b/FEBioStudio/iOSQProcess.h
+@@ -0,0 +1,79 @@
++/*====================================================================================
++ iOS port (patch 0007): QProcess does not exist on iOS — the platform
++ forbids subprocesses, and Qt builds its iOS kit without the class
++ (QT_CONFIG(process) is off, so <QProcess> declares nothing).
++
++ FEBio Studio uses QProcess in two ways:
++   1. As a set of status enums in signal/slot signatures — including
++      on the DEFAULT job path, where the in-process CFEBioJobThread
++      reports completion as resultsReady(int, QProcess::ExitStatus).
++      That path is fully supported on iOS and must keep working.
++   2. To actually spawn processes (LOCAL launch config, batch runs,
++      plugin configure/build, the desktop updater). None of these
++      can ever work on iOS.
++
++ This header provides a minimal QProcess stand-in for iOS only:
++ the enums and the small method surface Studio calls. start()
++ does nothing and the state stays NotRunning, so process-based
++ features degrade to "could not start" instead of breaking the
++ build; everything else in Studio is untouched. On every other
++ platform this header is empty and the real QProcess is used.
++====================================================================================*/
++#pragma once
++
++#ifdef Q_OS_IOS
++
++#include <QObject>
++#include <QString>
++#include <QStringList>
++#include <QByteArray>
++#include <QProcessEnvironment>
++
++class QProcess : public QObject
++{
++public:
++	enum ExitStatus { NormalExit, CrashExit };
++	enum ProcessError { FailedToStart, Crashed, Timedout, ReadError, WriteError, UnknownError };
++	enum ProcessState { NotRunning, Starting, Running };
++	enum ProcessChannelMode { SeparateChannels, MergedChannels, ForwardedOutputChannel, ForwardedErrorChannel, ForwardedChannels };
++
++	explicit QProcess(QObject* parent = nullptr) : QObject(parent) {}
++	~QProcess() override = default;
++
++	void setProcessChannelMode(ProcessChannelMode) {}
++	void setWorkingDirectory(const QString&) {}
++	QString workingDirectory() const { return QString(); }
++	void setProcessEnvironment(const QProcessEnvironment&) {}
++
++	// iOS cannot spawn processes: start() is a no-op and the
++	// process remains NotRunning forever.
++	void start(const QString&, const QStringList&) {}
++	void start(const QString&) {}
++	static bool startDetached(const QString&, const QStringList&) { return false; }
++
++	ProcessState state() const { return NotRunning; }
++	void kill() {}
++	void terminate() {}
++	bool waitForStarted(int = 30000) { return false; }
++	bool waitForFinished(int = 30000) { return true; }
++	int  exitCode() const { return 0; }
++	ExitStatus exitStatus() const { return NormalExit; }
++	ProcessError error() const { return FailedToStart; }
++
++	QByteArray readAll() { return QByteArray(); }
++	QByteArray readAllStandardOutput() { return QByteArray(); }
++	QByteArray readAllStandardError() { return QByteArray(); }
++
++	// Signal signatures used by Studio's (string-based) connects.
++	// Declared so the names exist for moc-processed headers of
++	// other classes; this stand-in never emits them.
++	void started();
++	void finished(int exitCode, QProcess::ExitStatus exitStatus);
++	void errorOccurred(QProcess::ProcessError error);
++	void stateChanged(QProcess::ProcessState newState);
++	void readyRead();
++	void readyReadStandardOutput();
++	void readyReadStandardError();
++};
++
++#endif // Q_OS_IOS
