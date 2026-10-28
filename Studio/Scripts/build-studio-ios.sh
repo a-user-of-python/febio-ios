@@ -16,9 +16,10 @@
 #
 # Link note: FEBio registers its materials/models through static
 # factory objects. With static libraries the linker would drop
-# unreferenced archives, so every FEBio archive is -force_load'ed
-# into the app (same solution as the spike, which is
-# device-verified).
+# unreferenced archives, so patch 0005 -force_load's every FEBio
+# archive into the app target (same solution as the spike, which
+# is device-verified). It must be target-scoped: global linker
+# flags would also hit CMake's compiler test programs.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -94,11 +95,6 @@ mkdir -p "$SRC/iOS"
 cp "$ROOT/Studio/iOS/Info.plist" "$SRC/iOS/Info.plist"
 
 # ---------------------------------------------------------- configure
-FORCE_LOADS=""
-for a in "$FEBIO_LIB"/*.a; do
-	FORCE_LOADS="$FORCE_LOADS -Wl,-force_load,$a"
-done
-
 echo "== configuring FEBio Studio for iOS arm64"
 cmake -S "$SRC" -B "$BLD" -G Ninja \
 	-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
@@ -125,8 +121,7 @@ cmake -S "$SRC" -B "$BLD" -G Ninja \
 	-DBUILD_UPDATER=OFF \
 	-DBUILD_TESTS=OFF \
 	-DCMAKE_C_FLAGS="-I$ROOT/Scripts/ios-shim" \
-	-DCMAKE_CXX_FLAGS="-I$ROOT/Scripts/ios-shim" \
-	-DCMAKE_EXE_LINKER_FLAGS="$FORCE_LOADS"
+	-DCMAKE_CXX_FLAGS="-I$ROOT/Scripts/ios-shim"
 
 echo "== building FEBio Studio"
 cmake --build "$BLD" -j"$NCPU"

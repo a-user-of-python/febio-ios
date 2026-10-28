@@ -173,7 +173,9 @@ PBS, SLURM, CUSTOM.
    SET_DEVCOMMIT=OFF, deployment target 17.0, omp shim include
    path reused from the spike) → Ninja build.
    `-force_load` for every FEBio archive at the app link
-   (script-level, mirrors the spike).
+   (patch 0005, target-scoped — global linker flags would also
+   hit CMake's compiler test programs and break configure; that
+   was run 40760342892's failure, fixed by 0005).
 4. Copy `Model/tension-block.feb` into the .app; compile the
    launch-screen storyboard with ibtool and copy it in; verify
    arm64 + QIOS plugin strings; package the unsigned IPA
@@ -194,6 +196,10 @@ PBS, SLURM, CUSTOM.
   by Studio/iOS/ in this repo: bundle id com.user.febiostudio,
   iPad device family, orientations, launch storyboard, file
   sharing on) instead of the macOS plist.
+- **0005** CMakeLists.txt — on iOS, `-force_load` every FEBio
+  archive into the app target (static-registration survival) and
+  link `-framework Accelerate` (NumCore's Apple sparse solvers;
+  the imported FEBio targets do not propagate it).
 
 ## What M1 will and won't prove
 
