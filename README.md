@@ -43,6 +43,10 @@ exactly 1.0000 mm).
 - `Patches/` — every patch applied to FEBio's build, enumerated.
   FEBio is MIT-licensed, so patching is permitted; nothing is
   patched silently.
+- `App/omp_stub.c` — an app-side addition (not a FEBio patch):
+  FEBio calls a few OpenMP API functions explicitly and the iOS SDK
+  has no OpenMP runtime, so the app supplies single-threaded stubs.
+  Consequence: the spike solves on one thread.
 
 ## FEBio version
 

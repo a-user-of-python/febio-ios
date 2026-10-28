@@ -30,7 +30,7 @@ set(FEBIO_LIBS
 foreach(lib IN LISTS FEBIO_LIBS)
 	target_link_libraries(febio_host_harness PRIVATE ${FEBIO_BUILD_DIR}/lib/lib${lib}.so)
 endforeach()
-target_link_libraries(febio_host_harness PRIVATE z dl pthread)
+target_link_libraries(febio_host_harness PRIVATE z dl pthread gomp)
 
 set_target_properties(febio_host_harness PROPERTIES
 	BUILD_RPATH ${FEBIO_BUILD_DIR}/lib)

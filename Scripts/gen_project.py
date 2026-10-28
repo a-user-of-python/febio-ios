@@ -31,6 +31,7 @@ APP_SOURCES = [
     "App/FEBioSpikeApp.swift",
     "App/ContentView.swift",
     "App/febio_facade.cpp",
+    "App/omp_stub.c",
 ]
 APP_OTHER = [
     "App/febio_facade.h",
@@ -48,6 +49,7 @@ FEBIO_LIBS = [
 
 FILETYPE = {
     "cpp": "sourcecode.cpp.cpp",
+    "c": "sourcecode.c.c",
     "h": "sourcecode.c.h",
     "swift": "sourcecode.swift",
     "plist": "text.plist.xml",

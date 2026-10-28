@@ -11,7 +11,9 @@
 
 #include <FEBioLib/febio.h>
 #include <FEBioLib/FEBioModel.h>
+#include <FEBioLib/LogStream.h>
 #include <FEBioLib/version.h>
+#include <FECore/FECoreKernel.h>
 #include <FECore/FEException.h>
 #include <FECore/FEMesh.h>
 #include <FECore/FENode.h>
@@ -25,6 +27,27 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <string>
+
+// Log stream that captures FEBio's own log output so solver/parse
+// errors can be surfaced verbatim in FBResult.message instead of
+// disappearing into a file nobody can open in the app.
+class StringLogStream : public LogStream
+{
+public:
+	void print(const char* sz) override
+	{
+		if (sz) m_text += sz;
+		if (m_text.size() > 65536) m_text.erase(0, m_text.size() - 65536);
+	}
+	std::string tail(size_t n) const
+	{
+		if (m_text.size() <= n) return m_text;
+		return m_text.substr(m_text.size() - n);
+	}
+private:
+	std::string m_text;
+};
 
 static void setMessage(FBResult* out, const char* fmt, ...)
 {
@@ -40,7 +63,7 @@ static void setMessage(FBResult* out, const char* fmt, ...)
 static double vonMises(const mat3ds& s)
 {
 	const double xx = s.xx(), yy = s.yy(), zz = s.zz();
-	const double xy = s.xy(), yz = s.yz(), zx = s.zx();
+	const double xy = s.xy(), yz = s.yz(), zx = s.xz();
 	const double d1 = xx - yy, d2 = yy - zz, d3 = zz - xx;
 	return sqrt(0.5 * (d1 * d1 + d2 * d2 + d3 * d3) + 3.0 * (xy * xy + yz * yz + zx * zx));
 }
@@ -53,19 +76,28 @@ int fb_run_model(const char* febPath, FBResult* out)
 		return 0;
 	}
 
+	// Owned by the model's Logfile once attached (it deletes the
+	// stream with the model); kept reachable here for error tails.
+	StringLogStream* logStream = new StringLogStream();
+
 	try {
-		// One-time library init (module + material registration).
+		// One-time setup, mirroring FEBioApp::Init: the FECore kernel
+		// instance must be installed before InitLibrary, or model
+		// building cannot resolve any registered classes.
 		static bool s_init = false;
 		if (!s_init) {
+			FECoreKernel::SetInstance(febio::GetFECoreKernel());
 			febio::InitLibrary();
 			s_init = true;
 		}
 
 		FEBioModel fem;
 		fem.CreateReport(false);
+		fem.GetLogFile().SetLogStream(logStream);
 
 		if (fem.Input(febPath) == false) {
-			setMessage(out, "FEBio could not read the model file: %s", febPath);
+			std::string tail = logStream->tail(700);
+			setMessage(out, "FEBio could not read the model file.\n%s", tail.c_str());
 			return 0;
 		}
 
@@ -75,7 +107,8 @@ int fb_run_model(const char* febPath, FBResult* out)
 		out->solveSeconds = std::chrono::duration<double>(t1 - t0).count();
 
 		if (!ok) {
-			setMessage(out, "FEBio solver did not converge / aborted. See the .log file written next to the model.");
+			std::string tail = logStream->tail(700);
+			setMessage(out, "FEBio solver did not converge / aborted.\n%s", tail.c_str());
 			return 0;
 		}
 
@@ -87,7 +120,7 @@ int fb_run_model(const char* febPath, FBResult* out)
 		for (int i = 0; i < mesh.Nodes(); ++i) {
 			const FENode& node = mesh.Node(i);
 			const vec3d u = node.m_rt - node.m_r0;
-			const double m = u.length();
+			const double m = u.Length();
 			if (m > maxDisp) maxDisp = m;
 		}
 		out->maxDisp = maxDisp;

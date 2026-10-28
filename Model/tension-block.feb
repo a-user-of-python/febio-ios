@@ -6,6 +6,7 @@
 		<time_steps>10</time_steps>
 		<step_size>0.1</step_size>
 		<plot_level>PLOT_MAJOR_ITRS</plot_level>
+		<solver/>
 	</Control>
 	<Globals>
 		<Constants>
@@ -172,22 +173,26 @@
 		<SolidDomain name="Block" mat="BlockMat"/>
 	</MeshDomains>
 	<Boundary>
-		<bc name="FixLeft" type="fix" node_set="Fixed">
-			<dofs>ux,uy,uz</dofs>
+		<bc name="FixLeft" type="zero displacement" node_set="Fixed">
+			<x_dof>1</x_dof>
+			<y_dof>1</y_dof>
+			<z_dof>1</z_dof>
 		</bc>
-		<bc name="PullRight" type="prescribe" node_set="Pulled">
-			<dof>ux</dof>
-			<scale lc="1">1.0</scale>
+		<bc name="PullRight" type="prescribed displacement" node_set="Pulled">
+			<dof>x</dof>
+			<value lc="1">1.0</value>
 			<relative>0</relative>
 		</bc>
 	</Boundary>
 	<LoadData>
-		<loadcurve id="1" type="linear">
+		<load_controller id="1" type="loadcurve">
+			<interpolate>LINEAR</interpolate>
+			<extend>CONSTANT</extend>
 			<points>
-				<pt>0,0</pt>
-				<pt>1,1</pt>
+				<point>0,0</point>
+				<point>1,1</point>
 			</points>
-		</loadcurve>
+		</load_controller>
 	</LoadData>
 	<Output>
 		<plotfile type="febio"/>

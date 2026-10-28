@@ -10,6 +10,7 @@
 		59DD005F9646AF4D4512E3F5 /* FEBioSpikeApp.swift in app-sources */ = {isa = PBXBuildFile; fileRef = AFD273AEE365D49B8423647E /* FEBioSpikeApp.swift */; };
 		4CA1C434BAE2127CCFF30CEF /* ContentView.swift in app-sources */ = {isa = PBXBuildFile; fileRef = B2F7709ADD413C69CF7C26B6 /* ContentView.swift */; };
 		2CDFBEEFCAF8BA89628865B4 /* febio_facade.cpp in app-sources */ = {isa = PBXBuildFile; fileRef = 23A9C5C044EDDE878D51FF9F /* febio_facade.cpp */; };
+		E7F62259DCD99FC4B59781F9 /* omp_stub.c in app-sources */ = {isa = PBXBuildFile; fileRef = 3C151977F086F28E3C251D57 /* omp_stub.c */; };
 		DAD9E51EFA15C9A9571C63FD /* tension-block.feb in app-resources */ = {isa = PBXBuildFile; fileRef = 6B791361617E07A6102115DA /* tension-block.feb */; };
 /* End PBXBuildFile section */
 
@@ -17,6 +18,7 @@
 		AFD273AEE365D49B8423647E /* FEBioSpikeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FEBioSpikeApp.swift; path = App/FEBioSpikeApp.swift; sourceTree = SOURCE_ROOT; };
 		B2F7709ADD413C69CF7C26B6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = App/ContentView.swift; sourceTree = SOURCE_ROOT; };
 		23A9C5C044EDDE878D51FF9F /* febio_facade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = febio_facade.cpp; path = App/febio_facade.cpp; sourceTree = SOURCE_ROOT; };
+		3C151977F086F28E3C251D57 /* omp_stub.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = omp_stub.c; path = App/omp_stub.c; sourceTree = SOURCE_ROOT; };
 		6CA5A203EAB600E6CB715AD0 /* febio_facade.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = febio_facade.h; path = App/febio_facade.h; sourceTree = SOURCE_ROOT; };
 		FAE57460E8A5C975CFAF7278 /* FEBioSpike-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FEBioSpike-Bridging-Header.h; path = App/FEBioSpike-Bridging-Header.h; sourceTree = SOURCE_ROOT; };
 		36291340F8E26B93BEB58318 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = App/Info.plist; sourceTree = SOURCE_ROOT; };
@@ -53,6 +55,7 @@
 				59DD005F9646AF4D4512E3F5 /* FEBioSpikeApp.swift in Sources */,
 				4CA1C434BAE2127CCFF30CEF /* ContentView.swift in Sources */,
 				2CDFBEEFCAF8BA89628865B4 /* febio_facade.cpp in Sources */,
+				E7F62259DCD99FC4B59781F9 /* omp_stub.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +68,7 @@
 				AFD273AEE365D49B8423647E /* FEBioSpikeApp.swift */,
 				B2F7709ADD413C69CF7C26B6 /* ContentView.swift */,
 				23A9C5C044EDDE878D51FF9F /* febio_facade.cpp */,
+				3C151977F086F28E3C251D57 /* omp_stub.c */,
 				6CA5A203EAB600E6CB715AD0 /* febio_facade.h */,
 				FAE57460E8A5C975CFAF7278 /* FEBioSpike-Bridging-Header.h */,
 				36291340F8E26B93BEB58318 /* Info.plist */,
