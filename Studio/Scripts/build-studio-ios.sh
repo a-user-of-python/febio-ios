@@ -53,8 +53,52 @@ QT_DESKTOP="$QT_ROOT/$QT_VERSION/clang_64"
 QT_IOS="$QT_ROOT/$QT_VERSION/ios"
 echo "== Qt $QT_VERSION ready (host: $QT_DESKTOP, ios: $QT_IOS)"
 test -f "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake"
+test -f "$QT_DESKTOP/lib/cmake/Qt6/Qt6Config.cmake"
 
 command -v ninja >/dev/null || brew install ninja
+
+# Smoke-test the Qt cross setup NOW (seconds) instead of after the
+# long FEBio build. Run 40763496098 died at this exact spot after
+# 17 minutes: Qt6Config claimed QT_HOST_PATH was unset although it
+# was passed. Dump the toolchain/helper logic that decides this,
+# then try the flag variants in order; the first that configures a
+# trivial project wins and is used for the real configure below.
+echo "== Qt host-path machinery (from the installed kits):"
+grep -n "QT_HOST_PATH" "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" | head -20 || true
+sed -n '250,300p' "$QT_IOS/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake" || true
+
+SMOKE="$WORK/smoke"
+rm -rf "$SMOKE"; mkdir -p "$SMOKE"
+cat > "$SMOKE/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.15)
+project(qt_smoke CXX)
+find_package(Qt6 COMPONENTS Core Gui Widgets Network OpenGL OpenGLWidgets ShaderTools GuiPrivate REQUIRED)
+add_library(qt_smoke STATIC smoke.cpp)
+target_link_libraries(qt_smoke Qt6::Widgets Qt6::GuiPrivate)
+EOF
+echo 'int qt_smoke_fn() { return 0; }' > "$SMOKE/smoke.cpp"
+
+QT_FLAGS_MODE=""
+if cmake -S "$SMOKE" -B "$SMOKE/bA" -G Ninja \
+	-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
+	-DQT_HOST_PATH="$QT_DESKTOP" \
+	-DCMAKE_PREFIX_PATH="$QT_IOS" \
+	-DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
+	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 >"$SMOKE/logA.txt" 2>&1; then
+	QT_FLAGS_MODE="A"
+	echo "== Qt smoke test: variant A (toolchain + QT_HOST_PATH + prefix + Qt6_DIR) OK"
+elif cmake -S "$SMOKE" -B "$SMOKE/bB" -G Ninja \
+	-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
+	-DQT_HOST_PATH="$QT_DESKTOP" \
+	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 >"$SMOKE/logB.txt" 2>&1; then
+	QT_FLAGS_MODE="B"
+	echo "== Qt smoke test: variant B (toolchain + QT_HOST_PATH only) OK"
+else
+	echo "ERROR: Qt smoke test failed for both flag variants" >&2
+	echo "----- variant A log:" >&2; cat "$SMOKE/logA.txt" >&2
+	echo "----- variant B log:" >&2; cat "$SMOKE/logB.txt" >&2
+	exit 1
+fi
 
 # ------------------------------------------------------------- FEBio
 echo "== building FEBio solver (spike script)"
@@ -95,12 +139,15 @@ mkdir -p "$SRC/iOS"
 cp "$ROOT/Studio/iOS/Info.plist" "$SRC/iOS/Info.plist"
 
 # ---------------------------------------------------------- configure
-echo "== configuring FEBio Studio for iOS arm64"
+echo "== configuring FEBio Studio for iOS arm64 (Qt flags variant $QT_FLAGS_MODE)"
+QT_PREFIX_FLAGS=()
+if [ "$QT_FLAGS_MODE" = "A" ]; then
+	QT_PREFIX_FLAGS=(-DCMAKE_PREFIX_PATH="$QT_IOS" -DQt6_DIR="$QT_IOS/lib/cmake/Qt6")
+fi
 cmake -S "$SRC" -B "$BLD" -G Ninja \
 	-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
 	-DQT_HOST_PATH="$QT_DESKTOP" \
-	-DCMAKE_PREFIX_PATH="$QT_IOS" \
-	-DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
+	"${QT_PREFIX_FLAGS[@]}" \
 	-DQt_Root="$QT_ROOT/$QT_VERSION" \
 	-DFEBio_DIR="$FEBIO_SRC" \
 	-DFEBio_BUILD_DIR="$FEBIO_BLD" \
