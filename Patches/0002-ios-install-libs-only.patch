@@ -1,0 +1,39 @@
+febio-ios patch 0002 — iOS: install libraries only. The febio4
+executable is not built for iOS, and CMake rejects its
+MACOSX_BUNDLE install rule there ("no BUNDLE DESTINATION").
+Upstream behaviour on all other platforms is unchanged.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 803cadf..560649d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -480,12 +480,23 @@ else()
+ endif()
+ 
+ #### Set up installation #####
+-install(TARGETS febio4 numcore febioxml febiotest febiorve febioplot febioopt
+-    febiomix febiomech febiofluid feamr feimglib fecore febiolib
+-    RUNTIME DESTINATION bin
+-    LIBRARY DESTINATION lib
+-    ARCHIVE DESTINATION lib
+-    )
++if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
++    # febio-ios: the febio4 executable is not built for iOS and its
++    # MACOSX_BUNDLE install rule is invalid there; libraries only.
++    install(TARGETS numcore febioxml febiotest febiorve febioplot febioopt
++        febiomix febiomech febiofluid feamr feimglib fecore febiolib
++        RUNTIME DESTINATION bin
++        LIBRARY DESTINATION lib
++        ARCHIVE DESTINATION lib
++        )
++else()
++    install(TARGETS febio4 numcore febioxml febiotest febiorve febioplot febioopt
++        febiomix febiomech febiofluid feamr feimglib fecore febiolib
++        RUNTIME DESTINATION bin
++        LIBRARY DESTINATION lib
++        ARCHIVE DESTINATION lib
++        )
++endif()
+ 
+ install(DIRECTORY 
+     FEBio NumCore FECore FEAMR FEImgLib FEBioFluid FEBioLib FEBioMech FEBioMix
