@@ -38,8 +38,12 @@ python3 -m pip install --quiet --break-system-packages aqtinstall
 QT_VERSION=""
 for v in 6.9.3 6.8.3; do
 	echo "-- trying Qt $v"
-	if python3 -m aqt install-qt mac desktop "$v" clang_64 -O "$QT_ROOT" \
-	   && python3 -m aqt install-qt mac ios "$v" ios -O "$QT_ROOT"; then
+	# NOTE: --modules qtshadertools is required on both kits: aqt's
+	# default archive set omits qtshadertools, but Studio requires
+	# the Qt6::ShaderTools component (qt_add_shaders) and the host
+	# qsb tool (run 40771819510's smoke-test failure).
+	if python3 -m aqt install-qt mac desktop "$v" clang_64 -O "$QT_ROOT" --modules qtshadertools \
+	   && python3 -m aqt install-qt mac ios "$v" ios -O "$QT_ROOT" --modules qtshadertools; then
 		QT_VERSION="$v"
 		break
 	fi
