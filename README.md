@@ -65,6 +65,17 @@ GitHub Actions (free, standard `macos-26` runner): the workflow
 cross-compiles FEBio for iOS arm64, builds the app unsigned, and
 uploads `FEBioSpike-unsigned.ipa` as a build artifact.
 
+## FEBio Studio port (phase 2)
+
+The spike proved the solver on-device. The follow-on work in
+`Studio/` ports the **actual FEBio Studio 3.2.0 application**
+(Qt Widgets UI, QRhi viewport) to iOS, with touch added — no
+replacement UI. Start with `Studio/INVENTORY.md` (build/module
+inventory, the subprocess audit, the rendering analysis, and the
+patch list). The `build-studio.yml` workflow produces
+`FEBioStudio-unsigned.ipa`. FEBio Studio is MIT-licensed, like
+FEBio; the Studio license text is in the upstream source.
+
 ## License / attribution
 
 This project's own code is provided as-is for the spike. The FEBio

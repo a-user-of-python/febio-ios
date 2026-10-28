@@ -1,0 +1,18 @@
+diff --git a/FindDependencies.cmake b/FindDependencies.cmake
+index a9c7809..adab114 100644
+--- a/FindDependencies.cmake
++++ b/FindDependencies.cmake
+@@ -428,7 +428,12 @@ set(FFMPEG_DBG_LIB_DIR CACHE PATH "Path to the FFMPEG debug lib directory")
+ mark_as_advanced(FFMPEG_DBG_LIB_DIR)
+ 
+ # OpenGL
+-find_package(OpenGL REQUIRED)
++# iOS port: there is no desktop OpenGL in the iOS SDK, and nothing in
++# the Studio build links the CMake OpenGL targets (rendering goes
++# through QRhi). Skip the requirement when targeting iOS.
++if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
++	find_package(OpenGL REQUIRED)
++endif()
+ 
+ # Python
+ find_package(Python3 COMPONENTS Development)

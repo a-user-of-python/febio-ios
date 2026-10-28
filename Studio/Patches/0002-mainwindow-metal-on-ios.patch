@@ -1,0 +1,20 @@
+diff --git a/FEBioStudio/MainWindow.cpp b/FEBioStudio/MainWindow.cpp
+index a44c941..b3320c3 100644
+--- a/FEBioStudio/MainWindow.cpp
++++ b/FEBioStudio/MainWindow.cpp
+@@ -155,7 +155,14 @@ static QRhi::Implementation MapToValidAPI(GraphicsAPI graphicsApi)
+ #endif
+ 
+ 	// Always use Metal on Apple platforms
+-#if defined(Q_OS_MACOS) || defined(Q_OS_IOS)
++#if defined(Q_OS_IOS)
++	// iOS port: always use Metal. Upstream forces OpenGLES2 on Apple
++	// platforms while 3D textures are being fixed on Metal, but on iOS
++	// Metal is the native QRhi backend (there is no ANGLE in Qt's iOS
++	// kit), and the model viewport does not depend on the 3D-texture
++	// path (used by volume/image rendering).
++	api = QRhi::Metal;
++#elif defined(Q_OS_MACOS)
+ 	if ((api == QRhi::Null) ||
+ 		((api != QRhi::Metal) && (api != QRhi::OpenGLES2)))
+ 	{

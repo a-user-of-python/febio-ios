@@ -1,0 +1,57 @@
+diff --git a/FEBioStudio/FEBioStudio.cpp b/FEBioStudio/FEBioStudio.cpp
+index 688d39d..3bed57d 100644
+--- a/FEBioStudio/FEBioStudio.cpp
++++ b/FEBioStudio/FEBioStudio.cpp
+@@ -40,6 +40,10 @@ SOFTWARE.*/
+ #include <FEBioRun/FEBioInit.h>
+ #include "FBSApplication.h"
+ #include <rhi/qrhi.h>
++#ifdef Q_OS_IOS
++#include <QFile>
++#include <QStandardPaths>
++#endif
+ 
+ class FBSSplashScreen : public QSplashScreen
+ {
+@@ -97,6 +101,16 @@ int main(int argc, char* argv[])
+ 	// create the application object
+ 	FBSApplication app(argc, argv);
+ 
++#ifdef Q_OS_IOS
++	// iOS port: larger base font for readability on the target device.
++	// Font scaling only; the UI itself is unchanged.
++	{
++		QFont baseFont = QApplication::font();
++		baseFont.setPointSize(16);
++		app.setFont(baseFont);
++	}
++#endif
++
+ #ifdef WIN32
+ //	app.setStyle("fusion");
+ #endif
+@@ -182,6 +196,24 @@ int main(int argc, char* argv[])
+ 		wnd.OpenFile(argv[1], false);
+ 	}
+ 
++#ifdef Q_OS_IOS
++	// iOS port: open the sample model that ships inside the app
++	// bundle, so the port can be exercised without depending on the
++	// iOS file dialog. The file is first copied to the app's
++	// Documents folder (writable; FEBio writes its log and plot
++	// files next to the model), then opened through the same entry
++	// point the desktop build uses for command-line files.
++	if (argc < 2)
++	{
++		QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
++		QString dst = docs + "/tension-block.feb";
++		if (!QFile::exists(dst))
++			QFile::copy(QCoreApplication::applicationDirPath() + "/tension-block.feb", dst);
++		if (QFile::exists(dst))
++			wnd.OpenFile(dst, false);
++	}
++#endif
++
+ 	return app.exec();
+ }
+ 
