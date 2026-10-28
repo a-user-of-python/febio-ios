@@ -51,8 +51,9 @@ exactly 1.0000 mm).
 ## FEBio version
 
 Pinned to FEBio commit `9605327359ded64ea0d65dd1aeca484fc45a9acd`
-(FEBio 4.13.0 development tree, 2026-10-27), cloned by CI from
-https://github.com/febio/FEBio. Built with **MKL off** — the bundled
+(FEBio 4.13.0 development tree, 2026-10-27), fetched by CI as a
+codeload archive from https://github.com/febiosoftware/FEBio.
+Built with **MKL off** — the bundled
 Skyline solver is used instead of Intel MKL/Pardiso, so the build is
 pure ARM with no Intel dependency.
 
@@ -72,4 +73,4 @@ solver linked into the app is **MIT-licensed** open-source software:
 
 The full FEBio license text ships in this repository as
 `LICENSE-FEBio.txt` and is credited in the app's footer.
-FEBio: https://febio.org — source: https://github.com/febio/FEBio
+FEBio: https://febio.org — source: https://github.com/febiosoftware/FEBio

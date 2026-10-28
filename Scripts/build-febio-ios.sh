@@ -22,7 +22,7 @@ if [ ! -f "$WORK/.febio-src.stamp" ]; then
 	# (git demands credentials non-interactively). The codeload zip of
 	# the commit needs no auth and is byte-identical source.
 	rm -rf "$SRC" "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.zip"
-	curl -sL -o "$WORK/febio.zip" "https://codeload.github.com/febio/FEBio/zip/$FEBIO_COMMIT"
+	curl -sfL -o "$WORK/febio.zip" "https://codeload.github.com/febiosoftware/FEBio/zip/$FEBIO_COMMIT"
 	unzip -q "$WORK/febio.zip" -d "$WORK"
 	mkdir -p "$SRC"
 	cp -R "$WORK/FEBio-$FEBIO_COMMIT/." "$SRC/"
