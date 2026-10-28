@@ -12,3 +12,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+
+# The iOS SDK has no OpenMP header; put the spike's shim <omp.h>
+# (Scripts/ios-shim) first on the include path. Implementations are
+# the single-threaded stubs in App/omp_stub.c.
+set(CMAKE_C_FLAGS_INIT "-I${CMAKE_CURRENT_LIST_DIR}/ios-shim")
+set(CMAKE_CXX_FLAGS_INIT "-I${CMAKE_CURRENT_LIST_DIR}/ios-shim")

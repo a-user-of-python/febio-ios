@@ -37,6 +37,8 @@ void omp_set_dynamic(int b) { (void)b; }
 void omp_set_nested(int b) { (void)b; }
 void omp_set_max_active_levels(int n) { (void)n; }
 void omp_set_default_device(int n) { (void)n; }
+void omp_set_schedule(int kind, int chunk) { (void)kind; (void)chunk; }
+void omp_get_schedule(int* kind, int* chunk) { if (kind) *kind = 2; if (chunk) *chunk = 0; }
 
 double omp_get_wtime(void)
 {
