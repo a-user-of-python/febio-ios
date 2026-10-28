@@ -22,7 +22,11 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 FEBIO_COMMIT="32ae206ff4881dfb54f62296cd1558e58ed9fcc6"
 WORK="$ROOT/build/studio/febio"
 SRC="$WORK/src"
-BLD="$WORK/build"
+# The v4.13 tag's FEBioConfig.cmake (older than develop's) has no
+# FEBio_BUILD_DIR support: its in-tree mode looks for the libraries
+# under <source>/build/lib. So the build tree lives INSIDE the
+# source tree, exactly where that config expects it.
+BLD="$SRC/build"
 
 mkdir -p "$WORK"
 

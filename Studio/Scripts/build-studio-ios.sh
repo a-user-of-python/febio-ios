@@ -128,7 +128,6 @@ fi
 echo "== building FEBio SDK v4.13 (Studio script)"
 bash "$ROOT/Studio/Scripts/build-febio-sdk-ios.sh"
 FEBIO_SRC="$ROOT/build/studio/febio/src"
-FEBIO_BLD="$ROOT/build/studio/febio/build"
 FEBIO_LIB="$ROOT/build/studio/febio/lib"
 
 # ---------------------------------------------------- FEBio Studio
@@ -174,7 +173,6 @@ cmake -S "$SRC" -B "$BLD" -G Ninja \
 	"${QT_PREFIX_FLAGS[@]}" \
 	-DQt_Root="$QT_ROOT/$QT_VERSION" \
 	-DFEBio_DIR="$FEBIO_SRC" \
-	-DFEBio_BUILD_DIR="$FEBIO_BLD" \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
 	-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \

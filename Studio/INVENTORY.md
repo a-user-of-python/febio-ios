@@ -40,9 +40,12 @@ touch support — maximum reuse, minimum reimplementation.
 - Qt discovery in the root CMakeLists is skipped when `Qt6_DIR` and
   `CMAKE_PREFIX_PATH` are preset — the iOS build presets both.
 - FEBio linkage: `FEBioConfig.cmake` ships in the FEBio tree and
-  supports in-tree use (`FEBio_DIR` = FEBio source root,
-  `FEBio_BUILD_DIR` = our static iOS build tree). No SDK install
-  step needed. Targets consumed: FEBio::FECore (everything),
+  supports in-tree use (`FEBio_DIR` = FEBio source root). The
+  v4.13 tag's config is older than develop's: no FEBio_BUILD_DIR
+  support — it looks for the libraries under `<source>/build/lib`,
+  so the SDK build tree lives inside the source tree
+  (run 40777591066's configure failure; fixed by building there).
+  No SDK install step needed. Targets consumed: FEBio::FECore (everything),
   FEBio::FEBioLib/FEBioFluid/FEBioMech/FEBioMix (FEBioRun,
   FEBioLink), FEBio::FEBioXML/FEBioPlot/FEAMR (app),
   FEBio::FEBioOpt (ImageLib), FEBio::FEImgLib.
@@ -173,8 +176,8 @@ PBS, SLURM, CUSTOM.
    `Studio/Scripts/build-febio-sdk-ios.sh` (the spike's proven
    toolchain and patches, separate build tree).
 3. FEBio Studio @ pin (codeload tar.gz) → apply Studio patches
-   0001–0004 → CMake (Qt iOS toolchain, QT_HOST_PATH, FEBio_DIR /
-   FEBio_BUILD_DIR at the in-tree SDK, all optional features OFF,
+   0001–0005 → CMake (Qt iOS toolchain, QT_HOST_PATH, FEBio_DIR
+   at the in-tree SDK, all optional features OFF,
    SET_DEVCOMMIT=OFF, deployment target 17.0, omp shim include
    path reused from the spike) → Ninja build.
    `-force_load` for every FEBio archive at the app link

@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 08d30a4..757a2bd 100644
+index 08d30a4..b40c6d5 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -601,6 +601,20 @@ endif()
+@@ -601,6 +601,23 @@ endif()
  
  target_link_libraries(FEBioStudio ${FEBIOSTUDIO_LIBS})
  
@@ -11,11 +11,14 @@ index 08d30a4..757a2bd 100644
 +	# through static initializers spread over all of its module
 +	# libraries. Linked statically (the only option on iOS), the
 +	# linker would discard the unreferenced archives, so force-load
-+	# every FEBio archive into the app. NumCore's Apple sparse
-+	# solvers also need the Accelerate framework at the app link.
-+	# (Same solution as the device-verified spike build.)
++	# every FEBio archive into the app. The archives live under
++	# <FEBio source>/build/lib — the layout FEBioConfig.cmake's
++	# in-tree mode expects (FEBio_DIR is the FEBio source root).
++	# NumCore's Apple sparse solvers also need the Accelerate
++	# framework at the app link. (Same solution as the
++	# device-verified spike build.)
 +	foreach(febioLib IN ITEMS fecore numcore febioxml feimglib febioplot febiomech febiomix febiofluid febioopt feamr febiorve febiolib febcode febiotest)
-+		target_link_options(FEBioStudio PRIVATE "-Wl,-force_load,${FEBio_BUILD_DIR}/lib/lib${febioLib}.a")
++		target_link_options(FEBioStudio PRIVATE "-Wl,-force_load,${FEBio_DIR}/build/lib/lib${febioLib}.a")
 +	endforeach()
 +	target_link_libraries(FEBioStudio "-framework Accelerate")
 +endif()
