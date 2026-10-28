@@ -10,24 +10,25 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FEBIO_COMMIT="9605327359ded64ea0d65dd1aeca484fc45a9acd"
-FEBIO_URL="https://github.com/febio/FEBio.git"
 WORK="$ROOT/build/febio"
 SRC="$WORK/src"
 BLD="$WORK/build"
 
 mkdir -p "$WORK"
 
-if [ ! -d "$SRC/.git" ]; then
-	echo "== cloning FEBio @ $FEBIO_COMMIT"
-	rm -rf "$SRC"
-	git init -q "$SRC"
-	git -C "$SRC" remote add origin "$FEBIO_URL"
-	if ! git -C "$SRC" fetch -q --depth 1 origin "$FEBIO_COMMIT"; then
-		echo "== shallow fetch of pinned commit failed; full clone fallback"
-		rm -rf "$SRC"
-		git clone -q "$FEBIO_URL" "$SRC"
-	fi
-	git -C "$SRC" checkout -q "$FEBIO_COMMIT"
+if [ ! -f "$WORK/.febio-src.stamp" ]; then
+	echo "== fetching FEBio @ $FEBIO_COMMIT (codeload archive)"
+	# NOTE: a plain `git fetch` of a pinned SHA fails on the CI runner
+	# (git demands credentials non-interactively). The codeload zip of
+	# the commit needs no auth and is byte-identical source.
+	rm -rf "$SRC" "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.zip"
+	curl -sL -o "$WORK/febio.zip" "https://codeload.github.com/febio/FEBio/zip/$FEBIO_COMMIT"
+	unzip -q "$WORK/febio.zip" -d "$WORK"
+	mkdir -p "$SRC"
+	cp -R "$WORK/FEBio-$FEBIO_COMMIT/." "$SRC/"
+	rm -rf "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.zip"
+	git -C "$SRC" init -q  # so `git apply` behaves for Patches/
+	touch "$WORK/.febio-src.stamp"
 fi
 
 echo "== applying patches"
