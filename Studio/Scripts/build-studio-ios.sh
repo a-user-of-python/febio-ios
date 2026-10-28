@@ -33,7 +33,7 @@ NCPU="$(sysctl -n hw.ncpu)"
 
 # ---------------------------------------------------------------- Qt
 echo "== installing Qt (aqtinstall)"
-python3 -m pip install --quiet --user aqtinstall
+python3 -m pip install --quiet --break-system-packages aqtinstall
 QT_VERSION=""
 for v in 6.9.3 6.8.3; do
 	echo "-- trying Qt $v"
