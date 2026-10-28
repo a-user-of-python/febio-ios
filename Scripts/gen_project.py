@@ -152,7 +152,7 @@ def config(cid, name, settings):
 
 
 def main():
-    ldflags = ["$(inherited)", "-lc++", "-lz"]
+    ldflags = ["$(inherited)", "-lc++", "-lz", "-framework", "Accelerate"]
     for lib in FEBIO_LIBS:
         ldflags += ["-force_load", f"$(SRCROOT)/build/febio/lib/lib{lib}.a"]
 
