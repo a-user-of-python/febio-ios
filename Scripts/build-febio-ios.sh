@@ -21,12 +21,14 @@ if [ ! -f "$WORK/.febio-src.stamp" ]; then
 	# NOTE: a plain `git fetch` of a pinned SHA fails on the CI runner
 	# (git demands credentials non-interactively). The codeload zip of
 	# the commit needs no auth and is byte-identical source.
-	rm -rf "$SRC" "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.zip"
-	curl -sfL -o "$WORK/febio.zip" "https://codeload.github.com/febiosoftware/FEBio/zip/$FEBIO_COMMIT"
-	unzip -q "$WORK/febio.zip" -d "$WORK"
+	rm -rf "$SRC" "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.tar.gz"
+	# tar.gz, not zip: macOS unzip fails on the emoji filenames in
+	# FEBio's .github/ISSUE_TEMPLATE (exit 50); tar handles them.
+	curl -sfL -o "$WORK/febio.tar.gz" "https://codeload.github.com/febiosoftware/FEBio/tar.gz/$FEBIO_COMMIT"
+	tar -xzf "$WORK/febio.tar.gz" -C "$WORK"
 	mkdir -p "$SRC"
 	cp -R "$WORK/FEBio-$FEBIO_COMMIT/." "$SRC/"
-	rm -rf "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.zip"
+	rm -rf "$WORK/FEBio-$FEBIO_COMMIT" "$WORK/febio.tar.gz"
 	git -C "$SRC" init -q  # so `git apply` behaves for Patches/
 	touch "$WORK/.febio-src.stamp"
 fi
