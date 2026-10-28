@@ -10,16 +10,20 @@ touch support — maximum reuse, minimum reimplementation.
 | Component | Version | Commit | Source |
 |---|---|---|---|
 | FEBio Studio | **3.2.0** (`FBS_VERSION 3.2.0`, FEBioStudio/version.h) | `68380947421350c9a7dcb592f282a882fcbad02b2` (2026-08-11) | github.com/febiosoftware/FEBioStudio |
-| FEBio solver | **4.13.0** | `9605327359ded64ea0d65dd1aeca484fc45a9acd` (2026-10-27) | github.com/febiosoftware/FEBio |
+| FEBio SDK (for Studio) | **4.13.0 release** | tag `v4.13` = `32ae206ff4881dfb54f62296cd1558e58ed9fcc6` | github.com/febiosoftware/FEBio |
+| FEBio (spike only) | 4.13.0 develop snapshot | `9605327359ded64ea0d65dd1aeca484fc45a9acd` (2026-10-27) | github.com/febiosoftware/FEBio |
 
 - Studio builds against the **FEBio SDK** (`find_package(FEBio
-  REQUIRED)`); upstream CI builds that SDK from FEBio develop
-  (their release scripts reference the FEBio 4 SDK). The pair above
-  is "current Studio 3 + current FEBio 4". The FEBio pin is ~2.5
-  months newer than the Studio pin; if Studio fails to compile
-  against it (API drift), the fallback is the FEBio develop commit
-  nearest the Studio pin date. The FEBio pin is kept first because
-  it is the one already **device-verified** in the spike.
+  REQUIRED)`). First attempt used the spike's develop pin and
+  failed exactly on API drift (run 40772868459): Studio's
+  FSCore/Archive.h calls `vec2d::x()/y()`, accessors FEBio develop
+  removed in commit `15edba277c` (2026-05-19, "Modified vec2d
+  class to be more consistent with other vector classes"). The
+  v4.13 **release tag** predates that change and still has the
+  accessors (verified via the GitHub API), so the Studio build
+  pins the release SDK — the pairing upstream ships. The spike
+  keeps its develop pin (device-verified; it does not use the
+  changed API).
 - Both are MIT-licensed. Patches are legal; every patch is
   enumerated in `Studio/Patches/` with its reason.
 
@@ -165,8 +169,9 @@ PBS, SLURM, CUSTOM.
 ## Milestone 1 build recipe (CI, standard macos-26 runner)
 
 1. aqtinstall: Qt 6.9.3 desktop (host tools) + iOS kit.
-2. FEBio @ pin → static iOS libraries via the spike's proven
-   script/toolchain/patches (`Scripts/build-febio-ios.sh`).
+2. FEBio v4.13 release @ tag pin → static iOS libraries via
+   `Studio/Scripts/build-febio-sdk-ios.sh` (the spike's proven
+   toolchain and patches, separate build tree).
 3. FEBio Studio @ pin (codeload tar.gz) → apply Studio patches
    0001–0004 → CMake (Qt iOS toolchain, QT_HOST_PATH, FEBio_DIR /
    FEBio_BUILD_DIR at the in-tree SDK, all optional features OFF,

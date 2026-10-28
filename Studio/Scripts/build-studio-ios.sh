@@ -121,11 +121,15 @@ else
 fi
 
 # ------------------------------------------------------------- FEBio
-echo "== building FEBio solver (spike script)"
-bash "$ROOT/Scripts/build-febio-ios.sh"
-FEBIO_SRC="$ROOT/build/febio/src"
-FEBIO_BLD="$ROOT/build/febio/build"
-FEBIO_LIB="$ROOT/build/febio/lib"
+# The Studio port builds against the FEBio v4.13 RELEASE SDK (see
+# Studio/Scripts/build-febio-sdk-ios.sh for why — a develop-side
+# vec2d API change breaks Studio 3.2.0). The spike's own build tree
+# is not touched.
+echo "== building FEBio SDK v4.13 (Studio script)"
+bash "$ROOT/Studio/Scripts/build-febio-sdk-ios.sh"
+FEBIO_SRC="$ROOT/build/studio/febio/src"
+FEBIO_BLD="$ROOT/build/studio/febio/build"
+FEBIO_LIB="$ROOT/build/studio/febio/lib"
 
 # ---------------------------------------------------- FEBio Studio
 if [ ! -f "$WORK/.studio-src.stamp" ]; then
