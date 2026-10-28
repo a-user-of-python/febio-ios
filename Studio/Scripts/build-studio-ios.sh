@@ -49,9 +49,25 @@ if [ -z "$QT_VERSION" ]; then
 	echo "ERROR: could not install any candidate Qt version" >&2
 	exit 1
 fi
-QT_DESKTOP="$QT_ROOT/$QT_VERSION/clang_64"
 QT_IOS="$QT_ROOT/$QT_VERSION/ios"
+# Discover the desktop (host) kit directory instead of assuming its
+# name: Qt renamed the macOS desktop kit dir from clang_64 to macos
+# in newer releases, and a wrong guess here makes QT_HOST_PATH point
+# at a nonexistent directory (run 40763496098's "please set
+# QT_HOST_PATH" failure, and run 40765786297's silent death at the
+# Qt6Config existence test).
+echo "== Qt kit layout under $QT_ROOT/$QT_VERSION:"
+ls "$QT_ROOT/$QT_VERSION"
+find "$QT_ROOT/$QT_VERSION" -maxdepth 4 -name "Qt6Config.cmake" | sed 's/^/   /'
+QT_DESKTOP=""
+for cfg in "$QT_ROOT/$QT_VERSION"/*/lib/cmake/Qt6/Qt6Config.cmake; do
+	case "$cfg" in
+		"$QT_IOS"/*) ;;
+		*) QT_DESKTOP="$(dirname "$(dirname "$(dirname "$(dirname "$cfg")")")")" ;;
+	esac
+done
 echo "== Qt $QT_VERSION ready (host: $QT_DESKTOP, ios: $QT_IOS)"
+test -n "$QT_DESKTOP"
 test -f "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake"
 test -f "$QT_DESKTOP/lib/cmake/Qt6/Qt6Config.cmake"
 
