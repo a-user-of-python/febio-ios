@@ -44,7 +44,7 @@ APP_RESOURCES = ["Model/tension-block.feb"]
 FEBIO_LIBS = [
     "febiolib", "febiofluid", "febiomech", "febiomix", "febioopt",
     "febioplot", "febioxml", "feamr", "febiorve", "feimglib",
-    "numcore", "fecore",
+    "numcore", "fecore", "febcode", "febiotest",
 ]
 
 FILETYPE = {

@@ -227,6 +227,10 @@
 					"$(SRCROOT)/build/febio/lib/libnumcore.a",
 					-force_load,
 					"$(SRCROOT)/build/febio/lib/libfecore.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebcode.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiotest.a",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.user.febiospike;
 				PRODUCT_NAME = FEBioSpike;
@@ -282,6 +286,10 @@
 					"$(SRCROOT)/build/febio/lib/libnumcore.a",
 					-force_load,
 					"$(SRCROOT)/build/febio/lib/libfecore.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebcode.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiotest.a",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.user.febiospike;
 				PRODUCT_NAME = FEBioSpike;

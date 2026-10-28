@@ -58,7 +58,8 @@ cmake -S "$SRC" -B "$BLD" \
 echo "== building FEBio libraries"
 cmake --build "$BLD" -j"$(sysctl -n hw.ncpu)" --target \
 	fecore numcore febioxml feimglib febioplot \
-	febiomech febiomix febiofluid febioopt feamr febiorve febiolib
+	febiomech febiomix febiofluid febioopt feamr febiorve febiolib \
+	febcode febiotest
 
 mkdir -p "$WORK/lib"
 cp "$BLD"/lib/*.a "$WORK/lib/"
