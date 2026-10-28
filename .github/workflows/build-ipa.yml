@@ -1,0 +1,44 @@
+name: Build FEBio Spike IPA
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    name: FEBio Spike unsigned IPA
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cross-compile FEBio for iOS arm64
+        run: bash Scripts/build-febio-ios.sh
+
+      - name: Build FEBioSpike (unsigned)
+        run: |
+          xcodebuild build \
+            -project FEBioSpike.xcodeproj \
+            -scheme FEBioSpike \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package IPA
+        run: |
+          APP_PATH="build/dd/Build/Products/Release-iphoneos/FEBioSpike.app"
+          test -d "$APP_PATH"
+          rm -rf Payload FEBioSpike-unsigned.ipa
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry FEBioSpike-unsigned.ipa Payload
+          ls -lh FEBioSpike-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FEBioSpike-unsigned
+          path: FEBioSpike-unsigned.ipa

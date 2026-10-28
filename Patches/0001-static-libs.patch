@@ -1,0 +1,41 @@
+febio-ios patch 0001 — build the FEBio module libraries as static
+archives, and stop the macOS "-undefined dynamic_lookup" interface
+link option from being recorded on static targets (it would
+propagate into the app link and silently permit unresolved symbols).
+
+Driven by -DFEBIO_LIB_TYPE=STATIC; upstream default (SHARED) is
+unchanged when the variable is not set.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -4,8 +4,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+ project(FEBio)
+ set(FEBIO_LIBS FEBioFluid FEBioLib FEBioMech FEBioMix FEBioOpt FECore NumCore FEAMR FEBioRVE FEImgLib FEBioPlot FEBioXML)
+ set(STATIC_FEBIO_LIBS FEBioTest febcode)
++
++# febio-ios: library type for the FEBIO_LIBS modules (SHARED upstream).
++if(NOT DEFINED FEBIO_LIB_TYPE)
++	set(FEBIO_LIB_TYPE SHARED)
++endif()
+ 
+ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+@@ -198,13 +203,13 @@ macro(addLib name TYPE)
+     if(NOT WIN32)
+         set_property(TARGET ${lname} PROPERTY POSITION_INDEPENDENT_CODE ON)
+     endif()
+     
+-    if(APPLE)
++    if(APPLE AND FEBIO_LIB_TYPE STREQUAL "SHARED")
+         target_link_libraries(${lname} PRIVATE "-undefined dynamic_lookup")
+     endif()
+ endmacro()
+ 
+ foreach(name IN LISTS FEBIO_LIBS)
+-	addLib(${name} SHARED)
++	addLib(${name} ${FEBIO_LIB_TYPE})
+ endforeach(name)
+ 
+ foreach(name IN LISTS STATIC_FEBIO_LIBS)

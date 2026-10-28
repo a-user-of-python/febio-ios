@@ -1,0 +1,310 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		59DD005F9646AF4D4512E3F5 /* FEBioSpikeApp.swift in app-sources */ = {isa = PBXBuildFile; fileRef = AFD273AEE365D49B8423647E /* FEBioSpikeApp.swift */; };
+		4CA1C434BAE2127CCFF30CEF /* ContentView.swift in app-sources */ = {isa = PBXBuildFile; fileRef = B2F7709ADD413C69CF7C26B6 /* ContentView.swift */; };
+		2CDFBEEFCAF8BA89628865B4 /* febio_facade.cpp in app-sources */ = {isa = PBXBuildFile; fileRef = 23A9C5C044EDDE878D51FF9F /* febio_facade.cpp */; };
+		DAD9E51EFA15C9A9571C63FD /* tension-block.feb in app-resources */ = {isa = PBXBuildFile; fileRef = 6B791361617E07A6102115DA /* tension-block.feb */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		AFD273AEE365D49B8423647E /* FEBioSpikeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FEBioSpikeApp.swift; path = App/FEBioSpikeApp.swift; sourceTree = SOURCE_ROOT; };
+		B2F7709ADD413C69CF7C26B6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = App/ContentView.swift; sourceTree = SOURCE_ROOT; };
+		23A9C5C044EDDE878D51FF9F /* febio_facade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = febio_facade.cpp; path = App/febio_facade.cpp; sourceTree = SOURCE_ROOT; };
+		6CA5A203EAB600E6CB715AD0 /* febio_facade.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = febio_facade.h; path = App/febio_facade.h; sourceTree = SOURCE_ROOT; };
+		FAE57460E8A5C975CFAF7278 /* FEBioSpike-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FEBioSpike-Bridging-Header.h; path = App/FEBioSpike-Bridging-Header.h; sourceTree = SOURCE_ROOT; };
+		36291340F8E26B93BEB58318 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = App/Info.plist; sourceTree = SOURCE_ROOT; };
+		6B791361617E07A6102115DA /* tension-block.feb */ = {isa = PBXFileReference; lastKnownFileType = text; name = tension-block.feb; path = Model/tension-block.feb; sourceTree = SOURCE_ROOT; };
+		29508DA2FB00481A03F9F31B /* FEBioSpike.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FEBioSpike.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9E88FEF503C1E40FDF23CCDE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B156C1E46BE15DE52AC798A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DAD9E51EFA15C9A9571C63FD /* tension-block.feb in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2FB286088BD0BF8AE88E0D78 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59DD005F9646AF4D4512E3F5 /* FEBioSpikeApp.swift in Sources */,
+				4CA1C434BAE2127CCFF30CEF /* ContentView.swift in Sources */,
+				2CDFBEEFCAF8BA89628865B4 /* febio_facade.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXGroup section */
+		D1D0524B025E57AFFF263442 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AFD273AEE365D49B8423647E /* FEBioSpikeApp.swift */,
+				B2F7709ADD413C69CF7C26B6 /* ContentView.swift */,
+				23A9C5C044EDDE878D51FF9F /* febio_facade.cpp */,
+				6CA5A203EAB600E6CB715AD0 /* febio_facade.h */,
+				FAE57460E8A5C975CFAF7278 /* FEBioSpike-Bridging-Header.h */,
+				36291340F8E26B93BEB58318 /* Info.plist */,
+			);
+			name = App;
+			sourceTree = "<group>";
+		};
+		13CB9448904D13D14C47BDD4 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				6B791361617E07A6102115DA /* tension-block.feb */,
+			);
+			name = Model;
+			sourceTree = "<group>";
+		};
+		2F3A6B1E78F896718625FF06 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				29508DA2FB00481A03F9F31B /* FEBioSpike.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		518DA81DB9B99529C0C0AEBE /* Main */ = {
+			isa = PBXGroup;
+			children = (
+				D1D0524B025E57AFFF263442 /* App */,
+				13CB9448904D13D14C47BDD4 /* Model */,
+				2F3A6B1E78F896718625FF06 /* Products */,
+			);
+			name = Main;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6774CDF9324264D0758CD1F4 /* FEBioSpike */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5505F9AF814A7F0992DE2402 /* Build configuration list for PBXNativeTarget "FEBioSpike" */;
+			buildPhases = (
+				2FB286088BD0BF8AE88E0D78 /* Sources */,
+				9E88FEF503C1E40FDF23CCDE /* Frameworks */,
+				B156C1E46BE15DE52AC798A1 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = FEBioSpike;
+			productName = FEBioSpike;
+			productReference = 29508DA2FB00481A03F9F31B /* FEBioSpike.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		763D966A6FAD82BFA97623CE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					6774CDF9324264D0758CD1F4 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 7EF2517A8FE63F4681EC5EEA /* Build configuration list for PBXProject "FEBioSpike" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 518DA81DB9B99529C0C0AEBE;
+			productRefGroup = 2F3A6B1E78F896718625FF06 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6774CDF9324264D0758CD1F4 /* FEBioSpike */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		969595A508627F35A110362C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				GCC_ENABLE_CPP_EXCEPTIONS = YES;
+				GCC_ENABLE_CPP_RTTI = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		4C95F91A6D5CD87BB5DB8FDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				GCC_ENABLE_CPP_EXCEPTIONS = YES;
+				GCC_ENABLE_CPP_RTTI = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		C0DD1C3E4BFC124D878FE440 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/App",
+					"$(SRCROOT)/build/febio/src",
+					"$(SRCROOT)/build/febio/src/FEBioLib",
+				);
+				INFOPLIST_FILE = App/Info.plist;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					-lz,
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiolib.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiofluid.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiomech.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiomix.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebioopt.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebioplot.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebioxml.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfeamr.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiorve.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfeimglib.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libnumcore.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfecore.a",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.user.febiospike;
+				PRODUCT_NAME = FEBioSpike;
+				SWIFT_OBJC_BRIDGING_HEADER = App/FEBioSpike-Bridging-Header.h;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		699FCDBED06EC64C8A6B513F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/App",
+					"$(SRCROOT)/build/febio/src",
+					"$(SRCROOT)/build/febio/src/FEBioLib",
+				);
+				INFOPLIST_FILE = App/Info.plist;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					-lz,
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiolib.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiofluid.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiomech.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiomix.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebioopt.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebioplot.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebioxml.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfeamr.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfebiorve.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfeimglib.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libnumcore.a",
+					-force_load,
+					"$(SRCROOT)/build/febio/lib/libfecore.a",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.user.febiospike;
+				PRODUCT_NAME = FEBioSpike;
+				SWIFT_OBJC_BRIDGING_HEADER = App/FEBioSpike-Bridging-Header.h;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7EF2517A8FE63F4681EC5EEA /* Build configuration list for PBXProject "FEBioSpike" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				969595A508627F35A110362C /* Debug */,
+				4C95F91A6D5CD87BB5DB8FDD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5505F9AF814A7F0992DE2402 /* Build configuration list for PBXNativeTarget "FEBioSpike" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0DD1C3E4BFC124D878FE440 /* Debug */,
+				699FCDBED06EC64C8A6B513F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 763D966A6FAD82BFA97623CE /* Project object */;
+}
