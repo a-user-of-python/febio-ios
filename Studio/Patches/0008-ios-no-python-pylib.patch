@@ -20,10 +20,10 @@ index 08d30a4..3ce525d 100644
  
  if(WIN32)
 diff --git a/PyLib/PythonRunner.cpp b/PyLib/PythonRunner.cpp
-index f4989c6..ddd6125 100644
+index f4989c6..a281867 100644
 --- a/PyLib/PythonRunner.cpp
 +++ b/PyLib/PythonRunner.cpp
-@@ -23,6 +23,44 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+@@ -23,9 +23,48 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  SOFTWARE.*/
@@ -33,9 +33,11 @@ index f4989c6..ddd6125 100644
 +// with a stub: scripts simply report failure immediately, exactly
 +// like a desktop build with no working Python. The desktop
 +// implementation follows unchanged in the #else branch.
-+#ifdef Q_OS_IOS
++// (PythonRunner.h is included first so Q_OS_IOS is defined before
++// the conditional is evaluated.)
 +#include "PythonRunner.h"
 +#include <string>
++#ifdef Q_OS_IOS
 +
 +CPythonRunner* CPythonRunner::m_This = nullptr;
 +
@@ -67,8 +69,11 @@ index f4989c6..ddd6125 100644
 +#else
  #include <pybind11/pybind11.h>
  #include <pybind11/embed.h>
- #include "PythonRunner.h"
-@@ -133,3 +171,5 @@ void CPythonRunner::setPythonCWD(const std::string& cwd)
+-#include "PythonRunner.h"
+ #include "PyFBS.h"
+ #include <algorithm>
+ #include <QCoreApplication>
+@@ -133,3 +172,5 @@ void CPythonRunner::setPythonCWD(const std::string& cwd)
  	py::module_::import("os").attr("chdir")(cwd);
  #endif
  }
