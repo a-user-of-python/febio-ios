@@ -243,9 +243,13 @@ PBS, SLURM, CUSTOM.
   QuadricFit/FENNQuery sources and both sides define a free
   fact(int); force-loading every FEBio archive makes the
   duplicates collide (on desktop FEBio links shared, so they
-  never do). The duplicated classes have identical layouts, so
-  the iOS link adds -multiply_defined suppress (first
-  definition wins, as with the dynamic linker).
+  never do; the modern linker ignores -multiply_defined —
+  run 40802041535). Resolved by renaming the Studio-side
+  symbols in the only targets that touch them: QuadricFit →
+  QuadricFitFBS (MeshTools + app; Studio's copy has an extra
+  Fit() overload the app needs, FEBio's serves FEBioMech),
+  cmp_node → cmp_node_fbs (MeshTools), fact → fact_fbs
+  (ImageLib).
 
 ## What M1 will and won't prove
 

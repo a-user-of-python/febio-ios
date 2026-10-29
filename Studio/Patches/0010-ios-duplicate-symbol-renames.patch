@@ -1,0 +1,29 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4849a19..037b760 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -646,6 +646,24 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+ 	# functions explicitly. Link the single-threaded stub that
+ 	# the device-verified spike used for the same symbols.
+ 	target_sources(FEBioStudio PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEBioStudio/iOSOmpStub.c)
++	# iOS port (patch 0010): 16 duplicate symbols at the app link.
++	# Studio vendors copies of two FEBio sources whose symbols
++	# collide with the force-loaded FEBio archives (on desktop
++	# FEBio links shared, so they never collide; the modern
++	# linker ignores -multiply_defined). The duplicates:
++	#   - class QuadricFit: MeshTools' copy vs FECore's. Studio's
++	#     copy has an extra Fit() overload the app uses, FEBio's
++	#     is used by FEBioMech — both must exist. Rename the
++	#     Studio-side class in the only two targets that touch
++	#     it (MeshTools defines it, the app uses it; no Studio
++	#     TU includes FECore's QuadricFit.h).
++	#   - cmp_node (a C helper in both FENNQuery.cpp copies):
++	#     rename MeshTools' (only used inside that file).
++	#   - fact(int): FEAMR's sphericalHarmonics vs ImageLib's
++	#     FiberODFAnalysis: rename ImageLib's (only used there).
++	target_compile_definitions(MeshTools PRIVATE QuadricFit=QuadricFitFBS cmp_node=cmp_node_fbs)
++	target_compile_definitions(FEBioStudio PRIVATE QuadricFit=QuadricFitFBS)
++	target_compile_definitions(ImageLib PRIVATE fact=fact_fbs)
+ endif()
+ 
+ if(WIN32)
