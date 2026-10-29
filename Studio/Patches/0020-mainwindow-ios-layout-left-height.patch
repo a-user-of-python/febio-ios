@@ -1,0 +1,65 @@
+diff --git a/FEBioStudio/MainWindow.cpp b/FEBioStudio/MainWindow.cpp
+index 8d39393..910c1c2 100644
+--- a/FEBioStudio/MainWindow.cpp
++++ b/FEBioStudio/MainWindow.cpp
+@@ -38,6 +38,7 @@ SOFTWARE.*/
+ #include <QMessageBox>
+ #include <QDirIterator>
+ #include <QPushButton>
++#include <QSplitter>
+ #include <QDesktopServices>
+ #include <QtCore/QMimeData>
+ #include <FSCore/FSObject.h>
+@@ -2103,17 +2104,48 @@ void CMainWindow::readSettings()
+ 		// takes everything else. Deferred until the window has
+ 		// its full-screen size. Users can rearrange afterwards,
+ 		// as on desktop; their layout is kept from then on.
+-		if (settings.value("iosLayoutVersion", 0).toInt() < 1)
+-		{
+-			settings.setValue("iosLayoutVersion", 1);
++		//
++		// Layout version 2 (device fix round 2): the left tab
++		// group (Project/Model/Post/Monitor are tabified into
++		// one group in the left dock area) also gets its full
++		// height — at the restored proportions it ended
++		// mid-screen, cutting the model tree short with dead
++		// space beneath it — and inside the Model panel the
++		// tree's share of its vertical split is raised.
++		if (settings.value("iosLayoutVersion", 0).toInt() < 2)
++		{
++			settings.setValue("iosLayoutVersion", 2);
+ 			QTimer::singleShot(0, this, [this]() {
+ 				QDockWidget* dockLeft  = qobject_cast<QDockWidget*>(ui->projectViewer->parentWidget());
+ 				QDockWidget* dockRight = qobject_cast<QDockWidget*>(ui->buildPanel->parentWidget());
+ 				QDockWidget* dockLog   = qobject_cast<QDockWidget*>(ui->logPanel->parentWidget());
+ 				if (dockLeft && dockRight)
+ 					resizeDocks({ dockLeft, dockRight }, { (int)(width() * 0.16), (int)(width() * 0.17) }, Qt::Horizontal);
++				const int bottomH = (int)(height() * 0.12);
+ 				if (dockLog)
+-					resizeDocks({ dockLog }, { (int)(height() * 0.12) }, Qt::Vertical);
++					resizeDocks({ dockLog }, { bottomH }, Qt::Vertical);
++				// resizing one member of a tabified group resizes
++				// the whole group: give the left group the height
++				// the bottom dock leaves behind.
++				if (dockLeft)
++					resizeDocks({ dockLeft }, { qMax(0, height() - bottomH) }, Qt::Vertical);
++				// Inside the Model panel, favour the tree over the
++				// properties pane in the vertical split (the outer
++				// splitter is a direct child of the viewer).
++				if (ui->modelViewer)
++				{
++					for (QSplitter* sp : ui->modelViewer->findChildren<QSplitter*>())
++					{
++						if (sp->parentWidget() == ui->modelViewer)
++						{
++							sp->setStretchFactor(0, 1);
++							sp->setStretchFactor(1, 0);
++							const int h = sp->height();
++							if (h > 0) sp->setSizes({ (h * 2) / 3, h - (h * 2) / 3 });
++							break;
++						}
++					}
++				}
+ 			});
+ 		}
+ #endif

@@ -333,6 +333,53 @@ PBS, SLURM, CUSTOM.
   pane's default parameters: one tap adds the shape. Panes
   needing viewport input (springs, curves, lofts) keep the
   desktop flow.
+- **0018** FEBioStudio/GLView.cpp — resolution diagnostics
+  (device fix round 2, item A): CGLView::customInit already logs
+  backend/driver/sample count to the app Log; a deferred entry
+  now adds the screen size (points), devicePixelRatio, the
+  computed native pixel size, the main-window and view-window
+  sizes (points), and the swapchain's surfacePixelSize — the
+  numbers that prove whether the app runs at the panel's native
+  resolution (view px == native px) or is handed a scaled screen.
+- **0019** FEBioStudio/FEBioStudio.cpp — start screen + display
+  scaling (device fix round 2, items B and C). An iOS-only
+  pre-main-window start screen in main(): a title and exactly
+  two controls — a "Launch FEBio" button and a gear-icon button
+  beside it (the gear is painted at runtime; Studio's resources
+  have no settings artwork). The gear opens a Settings dialog
+  whose control is **Display Scaling**: slider + spinbox,
+  75–175%, persisted in the same QSettings store the main
+  window uses (IniFormat/UserScope, MRLSoftware/FEBioStudio,
+  group "iOS", key "displayScalePercent"; default **115** — the
+  value the first device pass settled on, now user-adjustable).
+  The patch-0014 mechanism (platform font scale + stylesheet)
+  is driven by the stored value; application always scales from
+  the pristine platform font, so re-applying after a settings
+  change cannot compound; row min-height keeps 0014's 30 px as
+  a floor and grows with the scale. Patch 0014 itself is NOT
+  edited (its block is replaced in main by the launcher call).
+  Same patch: on iOS the main window is shown with
+  showFullScreen() (item A), so any restored desktop geometry
+  cannot shrink it below the full native display. Launching
+  proceeds through the unchanged flow (splash, main window,
+  sample auto-open).
+- **0020** FEBioStudio/MainWindow.cpp — layout version 2
+  (device fix round 2, item D): the 0016 pass sized dock widths
+  and the bottom dock only, and the left tab group
+  (Project/Model/Post/Monitor, tabified into one left-area
+  group) ended mid-height at the restored proportions — the
+  model tree was cut short with dead space below. The pass now
+  also resizeDocks the left group vertically to the height the
+  bottom dock leaves, and inside the Model panel raises the
+  tree's share of its internal vertical splitter (tree stack :
+  properties = 2:1, stretch factors set so resizes keep
+  favouring the tree). Versioned key bumped to 2, so it fires
+  once on upgraded installs; user layouts persist afterwards.
+  Also: `Studio/iOS/Info.plist` (this repo's file, not a Studio
+  patch) gains **UIRequiresFullScreen** — the app always owns
+  the full native display on iPad, the way the desktop build
+  owns a monitor (item A).
+
 
 ## M2 BUILD — GREEN (2026-10-29)
 
@@ -378,3 +425,40 @@ his iPad (first device run decides; GLES fallback is one line);
 solving from the UI (milestone 2 — the in-process path is proven,
 the UI path is not); opening arbitrary files (milestone 3);
 touch gestures beyond tap-as-click (viewport milestone).
+
+## DEVICE FIX ROUND 1 — GREEN (2026-10-29)
+
+Device verdict #1 on the M2 build (iPad Air M3): the app
+launches, Metal backend confirmed in the log, viewport draws
+(grid + triad) — but (1) the built-in model failed to load
+("FATAL ERROR: Unexpected end of file (line 202)"), (2) the
+UI was "a bit big", (3) Build > Create shape icons appeared
+unresponsive, (4) the 3D view was a small centre window in
+desktop layout proportions.
+
+Fixes: 0014 revised (vision scale x1.15, halved vertical
+padding), 0015 (importer childless-<logfile/> guard — the
+load failure's root cause, host-proven against the real
+XMLReader), 0016 (iPad layout proportions: docks sized from
+the actual window, viewport dominant), 0017 (iOS tap on a
+primitive icon also creates the object). Patch chain
+0001-0017 verified to apply in order to a pristine tree.
+
+Run **40858059701** succeeded (job 123393974992 completed
+success; the run-level status endpoint briefly reported a
+stale "completed" before the job had actually finished —
+job status + artifact presence are the trustworthy signals).
+Artifact `FEBioStudio-unsigned`: 20,996,639 B zip /
+21,028,374 B IPA, md5 dbc0cf43f3e4c2a27c93b33256441c99,
+staged at ~/workspace/your_files/FEBioStudio-unsigned.ipa
+(supersedes the M2 IPA). The .feb inside this IPA is again
+byte-identical to Model/tension-block.feb (md5
+2495391f22dfaf43d6ccf6d4be008430). Device verdict pending:
+launch -> block visible in a now-dominant 3D view ->
+orbit/select/pinch/long-press -> tap a Create shape -> it
+appears -> FEBio menu Run -> results colour the block ->
+and whether the size is comfortable now.
+
+Note: this section was appended locally after the code push
+landed; it rides along with the next Studio/** push (a
+doc-only push would trigger a redundant full rebuild).

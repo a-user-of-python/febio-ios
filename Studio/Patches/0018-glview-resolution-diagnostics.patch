@@ -1,0 +1,47 @@
+diff --git a/FEBioStudio/GLView.cpp b/FEBioStudio/GLView.cpp
+index 0d3249e..3b94c0d 100644
+--- a/FEBioStudio/GLView.cpp
++++ b/FEBioStudio/GLView.cpp
+@@ -28,7 +28,9 @@ SOFTWARE.*/
+ #include "MainWindow.h"
+ #include <QApplication>
+ #include <QQuaternion>
++#include <QScreen>
+ #include <QStyleHints>
++#include <QTimer>
+ #include "BuildPanel.h"
+ #include "CreatePanel.h"
+ #include "ModelDocument.h"
+@@ -1475,6 +1477,32 @@ void CGLView::customInit()
+ 	msg += QString("sample count = %1\n").arg(m_sc->sampleCount());
+ 	m_pWnd->AddLogEntry(msg);
+ 
++#ifdef Q_OS_IOS
++	// iOS port: resolution diagnostic (device fix round 2). The
++	// first device builds rendered "squished" — the suspicion is
++	// the app not running at the panel's native resolution.
++	// Deferred until the window is laid out and the swapchain
++	// exists, then log the numbers that settle it: if the view's
++	// pixel size equals the screen's pixel size (points x dpr),
++	// rendering is 1:1 at native resolution; anything less means
++	// the app is being handed a scaled-down screen.
++	QTimer::singleShot(750, this, [this]() {
++		QScreen* scr = screen();
++		const double dpr = scr ? scr->devicePixelRatio() : devicePixelRatio();
++		const QSize scrPt = scr ? scr->size() : QSize();
++		const QSize viewPx = m_sc ? m_sc->surfacePixelSize() : QSize();
++		QString diag;
++		diag += QString("screen = %1x%2 pt, dpr = %3 (native %4x%5 px)\n")
++			.arg(scrPt.width()).arg(scrPt.height()).arg(dpr)
++			.arg((int)qRound(scrPt.width() * dpr)).arg((int)qRound(scrPt.height() * dpr));
++		diag += QString("main window = %1x%2 pt, view window = %3x%4 pt, view = %5x%6 px\n")
++			.arg(m_pWnd->width()).arg(m_pWnd->height())
++			.arg(width()).arg(height())
++			.arg(viewPx.width()).arg(viewPx.height());
++		m_pWnd->AddLogEntry(diag);
++	});
++#endif
++
+ 	GLRenderEngine* re = const_cast<GLRenderEngine*>(GetRenderEngine());
+ 	if (re)
+ 	{
