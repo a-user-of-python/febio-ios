@@ -232,6 +232,12 @@ PBS, SLURM, CUSTOM.
   is replaced by an interface-identical stub whose runScript
   reports failure immediately. The Python editor window still
   opens; scripting itself is unavailable on iOS.
+- **0009** FEBioStudio/iOSOmpStub.c (new) + CMakeLists.txt —
+  the final link failed on seven omp_* symbols
+  (run 40795656325): the iOS SDK has no OpenMP runtime, but
+  FEBio's FEContactPotential and Studio's GLLib/RTLib call the
+  API explicitly. The stub is the spike's device-verified
+  single-threaded omp_stub.c, added to the app target.
 
 ## What M1 will and won't prove
 

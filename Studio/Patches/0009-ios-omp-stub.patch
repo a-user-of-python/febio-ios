@@ -1,0 +1,87 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c5bde65..4849a19 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -641,6 +641,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+ 		target_link_options(FEBioStudio PRIVATE "-Wl,-force_load,${FEBio_DIR}/build/lib/lib${febioLib}.a")
+ 	endforeach()
+ 	target_link_libraries(FEBioStudio "-framework Accelerate")
++	# iOS port (patch 0009): the iOS SDK ships no OpenMP runtime,
++	# but FEBio and two Studio libraries call a few omp_* API
++	# functions explicitly. Link the single-threaded stub that
++	# the device-verified spike used for the same symbols.
++	target_sources(FEBioStudio PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEBioStudio/iOSOmpStub.c)
+ endif()
+ 
+ if(WIN32)
+diff --git a/FEBioStudio/iOSOmpStub.c b/FEBioStudio/iOSOmpStub.c
+new file mode 100644
+index 0000000..afb05ce
+--- /dev/null
++++ b/FEBioStudio/iOSOmpStub.c
+@@ -0,0 +1,65 @@
++// Single-threaded OpenMP runtime stubs for iOS (FEBio Studio port,
++// patch 0009; identical approach — and body — to the device-verified
++// spike's App/omp_stub.c in this repository).
++//
++// FEBio and two Studio libraries call a handful of OpenMP API
++// functions explicitly (omp_get_max_threads, omp_get_num_threads,
++// the lock functions, ...). The iOS SDK ships no OpenMP runtime,
++// and this port builds without -fopenmp (so no compiler-generated
++// runtime calls exist — only the explicit API calls need symbols).
++// These stubs give correct single-threaded semantics: one thread,
++// locks that always succeed, wall clock via clock_gettime.
++//
++// This file is an addition of the port; no upstream source is
++// modified. If a later phase wants multi-threaded solves, the real
++// fix is building LLVM's libomp for iOS and dropping this file.
++
++#include <time.h>
++
++int omp_get_thread_num(void) { return 0; }
++int omp_get_num_threads(void) { return 1; }
++int omp_get_max_threads(void) { return 1; }
++int omp_get_num_procs(void) { return 1; }
++int omp_get_thread_limit(void) { return 1; }
++int omp_in_parallel(void) { return 0; }
++int omp_get_level(void) { return 0; }
++int omp_get_active_level(void) { return 0; }
++int omp_get_team_size(int level) { (void)level; return 1; }
++int omp_get_num_teams(void) { return 1; }
++int omp_get_team_num(void) { return 0; }
++int omp_is_initial_device(void) { return 1; }
++int omp_get_dynamic(void) { return 0; }
++int omp_get_nested(void) { return 0; }
++int omp_get_max_active_levels(void) { return 1; }
++int omp_get_default_device(void) { return 0; }
++int omp_get_num_devices(void) { return 0; }
++
++void omp_set_num_threads(int n) { (void)n; }
++void omp_set_dynamic(int b) { (void)b; }
++void omp_set_nested(int b) { (void)b; }
++void omp_set_max_active_levels(int n) { (void)n; }
++void omp_set_default_device(int n) { (void)n; }
++void omp_set_schedule(int kind, int chunk) { (void)kind; (void)chunk; }
++void omp_get_schedule(int* kind, int* chunk) { if (kind) *kind = 2; if (chunk) *chunk = 0; }
++
++double omp_get_wtime(void)
++{
++	struct timespec ts;
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
++}
++double omp_get_wtick(void) { return 1e-9; }
++
++/* Lock API: single-threaded, so every lock is uncontended. The lock
++   object is an opaque int-sized handle in the real runtime; FEBio
++   only stores it and passes it back, so a no-op body is correct. */
++void omp_init_lock(void* lock) { (void)lock; }
++void omp_init_nest_lock(void* lock) { (void)lock; }
++void omp_destroy_lock(void* lock) { (void)lock; }
++void omp_destroy_nest_lock(void* lock) { (void)lock; }
++void omp_set_lock(void* lock) { (void)lock; }
++void omp_set_nest_lock(void* lock) { (void)lock; }
++void omp_unset_lock(void* lock) { (void)lock; }
++void omp_unset_nest_lock(void* lock) { (void)lock; }
++int omp_test_lock(void* lock) { (void)lock; return 1; }
++int omp_test_nest_lock(void* lock) { (void)lock; return 1; }
