@@ -208,6 +208,30 @@ PBS, SLURM, CUSTOM.
   archive into the app target (static-registration survival) and
   link `-framework Accelerate` (NumCore's Apple sparse solvers;
   the imported FEBio targets do not propagate it).
+- **0006** CMakeLists.txt — deployment target: the APPLE block's
+  hardcoded 10.15 (a macOS floor) becomes
+  -miphoneos-version-min < 13 on iOS, where Qt 6.9's
+  std::filesystem declarations are unavailable
+  (run 40781530344). iOS gets 17.0; macOS unchanged.
+- **0007** FEBioStudio/iOSQProcess.h (new) + includes in six
+  headers — iOS has no QProcess (QT_CONFIG(process) off; the
+  header declares nothing), but Studio uses
+  QProcess::ExitStatus/ProcessError in signal/slot signatures,
+  including the DEFAULT in-process job path
+  (run 40785251568). The new header is an iOS-only minimal
+  QProcess stand-in: enums + the small called-method surface;
+  start() is a no-op and the state stays NotRunning, so
+  process-spawning features (LOCAL jobs, batch, plugin builds,
+  updater) degrade to "could not start" on iOS. Desktop builds
+  see an empty header.
+- **0008** CMakeLists.txt + PyLib/PythonRunner.cpp — no CPython
+  exists on iOS, but PyLib's sources include pybind11
+  unconditionally (run 40789177730). On iOS the PyFBS*.cpp
+  module-registration sources are filtered out of PyLib (their
+  only caller is PythonRunner) and PythonRunner's implementation
+  is replaced by an interface-identical stub whose runScript
+  reports failure immediately. The Python editor window still
+  opens; scripting itself is unavailable on iOS.
 
 ## What M1 will and won't prove
 

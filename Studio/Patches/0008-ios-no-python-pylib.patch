@@ -1,0 +1,76 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 08d30a4..3ce525d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -363,6 +363,16 @@ foreach(name IN LISTS FEBIOSTUDIO_LIBS)
+ 	findHdrSrc(${name})
+ endforeach(name)
+ 
++if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
++	# iOS port (patch 0008): no CPython exists on iOS. PyLib's
++	# PyFBS*.cpp register the pybind11 module and cannot compile
++	# without Python headers. Nothing outside PyLib references
++	# them — PythonRunner is their only caller, and it is stubbed
++	# on iOS (see PyLib/PythonRunner.cpp) — so build PyLib from
++	# the remaining sources only.
++	list(FILTER SRC_PyLib EXCLUDE REGEX "PyFBS")
++endif()
++
+ ##### Add binaries #####
+ 
+ if(WIN32)
+diff --git a/PyLib/PythonRunner.cpp b/PyLib/PythonRunner.cpp
+index f4989c6..ddd6125 100644
+--- a/PyLib/PythonRunner.cpp
++++ b/PyLib/PythonRunner.cpp
+@@ -23,6 +23,44 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.*/
++// iOS port (patch 0008): there is no CPython interpreter on iOS,
++// so the pybind11 implementation below cannot build or run. The
++// class interface (used by the Python editor window) is preserved
++// with a stub: scripts simply report failure immediately, exactly
++// like a desktop build with no working Python. The desktop
++// implementation follows unchanged in the #else branch.
++#ifdef Q_OS_IOS
++#include "PythonRunner.h"
++#include <string>
++
++CPythonRunner* CPythonRunner::m_This = nullptr;
++
++CPythonRunner::CPythonRunner(QObject* parent) : QObject(parent), m_pythonHome(L"")
++{
++	m_This = this;
++}
++
++CPythonRunner::~CPythonRunner()
++{
++	if (m_This == this) m_This = nullptr;
++}
++
++CPythonRunner* CPythonRunner::GetInstance()
++{
++	return m_This;
++}
++
++bool CPythonRunner::isBusy() const { return false; }
++
++void CPythonRunner::interrupt() {}
++
++void CPythonRunner::SetWorkingDirectory(QString cwd) { m_cwd = cwd.toStdString(); }
++
++void CPythonRunner::runScript(QString) { emit runScriptFinished(false); }
++
++void CPythonRunner::setPythonCWD(const std::string&) {}
++
++#else
+ #include <pybind11/pybind11.h>
+ #include <pybind11/embed.h>
+ #include "PythonRunner.h"
+@@ -133,3 +171,5 @@ void CPythonRunner::setPythonCWD(const std::string& cwd)
+ 	py::module_::import("os").attr("chdir")(cwd);
+ #endif
+ }
++
++#endif // Q_OS_IOS (iOS port, patch 0008)
