@@ -250,6 +250,63 @@ PBS, SLURM, CUSTOM.
   Fit() overload the app needs, FEBio's serves FEBioMech),
   cmp_node → cmp_node_fbs (MeshTools), fact → fact_fbs
   (ImageLib).
+- **0011** RHILib/rhiTexture.cpp + rhiVolumeRenderPass.cpp —
+  3D-texture volume rendering is the one feature Metal cannot
+  do the desktop way (the reason upstream's Metal line is
+  commented out). Previously an unsupported format hit an
+  assert and callers built shader resources around a null
+  texture (crash path). Now: Texture3D::create leaves the
+  texture null, setTexture3D treats null as "volume rendering
+  unavailable" and returns, upload is validity-guarded, and
+  draw() already skipped texture-less passes — a clean
+  feature-disable on any backend without 3D textures. Core
+  mesh/post rendering never uses 3D textures.
+- **0012** FEBioStudio/GLView.h/.cpp — touch input (M2). The
+  viewport is a QWindow, so this is QTouchEvent, not QWidget
+  gestures. One finger is NOT claimed: Qt's synthesized mouse
+  events keep driving orbit/tap-select identically to desktop.
+  The patch adds: a touchEvent override (two-point state →
+  centroid pan with the middle-drag formula, pinch Zoom with
+  the native-gesture call, two-finger in-plane Orbit);
+  m_touchMulti, which makes mouseReleaseEvent ignore the
+  synthesized release that ends a claimed gesture (without it,
+  every pinch ends as a click-select or a spurious undoable
+  view change — the transition trap in the touch-mapping
+  report); a 450 ms long-press timer → the same
+  BuildContextMenu QMenu the right-button branch builds;
+  source-dependent click deadzone (3 px mouse / 14 px touch);
+  SelectPivot refresh on synthesized presses (pivot mode is
+  otherwise hover-set and stale for touch); pick-source
+  tracking for 0013; GVContextMenu row height 25 → 34 on iOS.
+  Flags are cleared only by the touch layer (TouchEnd/Cancel);
+  the gesture commits as ONE CCmdChangeView using the
+  press-time m_oldCam, like the mouse path.
+- **0013** FEBioStudio/GLViewSelector.cpp — pick tolerance:
+  all nine `S = 4`/`S = 6` half-extents scale by
+  CGLView::PickToleranceScale() (1 mouse / 3 touch, via the
+  existing m_glv pointer; the one file-local free function
+  takes it as a parameter). No signature changes to the
+  Select* entry points.
+- **0014** FEBioStudio/FEBioStudio.cpp — vision scaling per
+  the touch-mapping report: platform font ×1.3 (replacing
+  0003's fixed 16 pt) + a short iOS-only stylesheet
+  (tree/list item min-height 30 px, button/tab padding).
+  QT_SCALE_FACTOR deliberately not used — it would scale the
+  viewport's logical coordinates and corrupt picking math.
+
+## M1 RESULT — GREEN (2026-10-29)
+
+Run **40808198705** succeeded on the standard macos-26 runner:
+all 890 Ninja steps (25 Studio libs + the full app) compiled and
+linked for iOS arm64; CI verify confirmed the Qt iOS platform
+plugin is linked and FEBio material registration is present in
+the binary. Artifact `FEBioStudio-unsigned`: 20,994,331 B zip /
+21,026,489 B IPA (52,310,536 B arm64 executable inside), bundle
+com.user.febiostudio, tension-block.feb bundled, launch
+storyboard compiled in, file sharing enabled. Staged at
+~/workspace/your_files/FEBioStudio-unsigned.ipa. Device verdict
+pending — see "What M1 will and won't prove" below for what the
+first launch does and does not establish.
 
 ## What M1 will and won't prove
 

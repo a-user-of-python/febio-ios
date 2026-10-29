@@ -1,0 +1,32 @@
+diff --git a/FEBioStudio/FEBioStudio.cpp b/FEBioStudio/FEBioStudio.cpp
+index 3bed57d..630e153 100644
+--- a/FEBioStudio/FEBioStudio.cpp
++++ b/FEBioStudio/FEBioStudio.cpp
+@@ -102,12 +102,24 @@ int main(int argc, char* argv[])
+ 	FBSApplication app(argc, argv);
+ 
+ #ifdef Q_OS_IOS
+-	// iOS port: larger base font for readability on the target device.
+-	// Font scaling only; the UI itself is unchanged.
++	// iOS port: larger text for readability on the target device.
++	// Font/item scaling only; the UI itself is unchanged. The
++	// platform font is scaled (~1.3x) rather than fixed at a point
++	// size, and the dense item views get taller rows. Deliberately
++	// NOT QT_SCALE_FACTOR-style geometry scaling: that would also
++	// scale the GL viewport's logical coordinate space and
++	// corrupt the picking math (patch 0014).
+ 	{
+ 		QFont baseFont = QApplication::font();
+-		baseFont.setPointSize(16);
++		if (baseFont.pointSizeF() > 0)
++			baseFont.setPointSizeF(baseFont.pointSizeF() * 1.3);
++		else
++			baseFont.setPointSize(16);
+ 		app.setFont(baseFont);
++		app.setStyleSheet(
++			"QTreeView::item, QListWidget::item { min-height: 30px; }"
++			"QToolButton, QPushButton { padding-top: 6px; padding-bottom: 6px; }"
++			"QTabBar::tab { padding: 6px 10px; }");
+ 	}
+ #endif
+ 

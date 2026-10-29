@@ -1,0 +1,303 @@
+diff --git a/FEBioStudio/GLView.cpp b/FEBioStudio/GLView.cpp
+index 35b97cf..0d3249e 100644
+--- a/FEBioStudio/GLView.cpp
++++ b/FEBioStudio/GLView.cpp
+@@ -44,6 +44,8 @@ SOFTWARE.*/
+ #include <GLLib/GLContext.h>
+ #include <QMenu>
+ #include <QMessageBox>
++#include <QTouchEvent>
++#include <QLineF>
+ #include <QPainter>
+ #include <PostGL/GLPlaneCutPlot.h>
+ #include "Commands.h"
+@@ -184,7 +186,11 @@ public:
+ 	GVContextMenu(CGLView* glview) : GLComposite(50, 50, 175, 0), m_glview(glview)
+ 	{
+ 		const int W = w();
++#ifdef Q_OS_IOS
++		const int H = 34; // iOS (patch 0012): finger-sized rows in the in-viewport menu
++#else
+ 		const int H = 25;
++#endif
+ 
+ 		GLLabel* l = new GLLabel(0, 0, W, 30, "Physics:");
+ 		QFont font = l->get_font();
+@@ -378,6 +384,12 @@ CGLView::CGLView(CMainWindow* pwnd, QWidget* parent) : m_pWnd(pwnd), m_pivot(thi
+ 	m_legend = nullptr;
+ 	m_legendPlot = nullptr;
+ 	m_menu = nullptr;
++
++	// touch support (patch 0012): long-press timer for the
++	// viewport context menu (see touchEvent / OnLongPress).
++	m_longPress = new QTimer(this);
++	m_longPress->setSingleShot(true);
++	connect(m_longPress, &QTimer::timeout, this, &CGLView::OnLongPress);
+ }
+ 
+ CGLView::~CGLView()
+@@ -488,6 +500,15 @@ void CGLView::mousePressEvent(QMouseEvent* ev)
+ 
+ 	Qt::MouseButton but = ev->button();
+ 
++	// Touch support (patches 0012/0013): remember the input source
++	// so picks get a finger-sized tolerance, and refresh the pivot
++	// hover state that a real mouse sets by moving before it
++	// presses — a touch press arrives with whatever pivot mode the
++	// last hover (or no hover) left behind.
++	bool fromTouch = (ev->source() == Qt::MouseEventSynthesizedBySystem);
++	m_pickScale = fromTouch ? 3 : 1;
++	if (fromTouch) SelectPivot(x, y);
++
+ 	int pivotMode = m_pivot.GetSelectionMode();
+ 
+ 	if (but == Qt::LeftButton)
+@@ -920,12 +941,30 @@ void CGLView::mouseReleaseEvent(QMouseEvent* ev)
+ 	cam.SetMoving(false);
+ 
+ 	int pivotMode = m_pivot.GetSelectionMode();
++
++	// Touch support (patch 0012): if this release is the tail of
++	// a multi-touch gesture or of a long-press menu, the touch
++	// layer already handled the interaction (including the
++	// undoable view-change commit). Running the one-finger
++	// interpretation below would misread the gesture's end as a
++	// click-select or a second view change. The flags are owned
++	// (and cleared) by the touch layer.
++	if ((m_touchMulti || m_touchMenu) && (but == Qt::LeftButton))
++	{
++		m_bsel = false;
++		ev->accept();
++		repaint();
++		return;
++	}
++
+ 	if (pivotMode == PIVOT_SELECTION_MODE::SELECT_NONE)
+ 	{
+ 		if (but == Qt::LeftButton)
+ 		{
+ 			// allow for a small "deadzone" to simplify clicking with sensitive mice.
+-			const int DELTA = 3; 
++			// Touch (patch 0012): a fingertip jitters far more than a
++			// mouse, so synthesized touch releases get a larger zone.
++			const int DELTA = (ev->source() == Qt::MouseEventSynthesizedBySystem) ? 14 : 3;
+ 
+ 			// if we are in selection mode, we need to see if 
+ 			// there is an object under the cursor
+@@ -1202,6 +1241,154 @@ void CGLView::wheelEvent(QWheelEvent* ev)
+ 	ev->accept();
+ }
+ 
++//-----------------------------------------------------------------------------
++// Touch support (patch 0012, iOS). The viewport is a QWindow, so
++// multi-touch arrives as QTouchEvent, not as QWidget gestures.
++//
++// Design: one finger is NOT claimed — Qt's synthesized mouse
++// events drive orbit / tap-select exactly as on desktop. The
++// touch layer only (a) arms a long-press timer for the context
++// menu, and (b) claims the sequence when a second finger lands,
++// driving pan / pinch-zoom / two-finger rotate with the same
++// camera calls the mouse and native-gesture paths use.
++//
++// Claiming the sequence ends mouse synthesis for the first
++// finger, so a balancing synthesized mouse release still arrives;
++// m_touchMulti makes mouseReleaseEvent ignore it (otherwise the
++// end of every pinch would be misread as a click-select or an
++// undoable view change).
++//-----------------------------------------------------------------------------
++void CGLView::touchEvent(QTouchEvent* ev)
++{
++	const QList<QTouchEvent::TouchPoint>& pts = ev->points();
++
++	if (ev->type() == QEvent::TouchCancel)
++	{
++		m_longPress->stop();
++		m_touchPrev = false;
++		m_touchMulti = false;
++		m_touchMenu = false;
++		ev->accept();
++		return;
++	}
++
++	if (ev->type() == QEvent::TouchEnd)
++	{
++		m_longPress->stop();
++		if (m_touchMulti)
++		{
++			// Commit the whole gesture as ONE undoable view
++			// change — the same save/restore/redo pattern
++			// mouseReleaseEvent uses (m_oldCam was saved by the
++			// synthesized press that started the sequence).
++			GLScene* scene = GetActiveScene();
++			if (scene)
++			{
++				GLCamera& cam = scene->GetCamera();
++				CCmdChangeView* pcmd = new CCmdChangeView(&cam, cam);
++				cam = m_oldCam;
++				m_Cmd.DoCommand(pcmd);
++				cam.SetMoving(false);
++				update();
++			}
++		}
++		m_touchPrev = false;
++		m_touchMulti = false;
++		m_touchMenu = false;
++		ev->ignore(); // let the final release stay synthesized
++		return;
++	}
++
++	if (pts.size() == 1)
++	{
++		const QTouchEvent::TouchPoint& p = pts.first();
++		if (ev->type() == QEvent::TouchBegin)
++		{
++			// Record the press and arm the long-press timer;
++			// deliberately not accepted (see header comment).
++			m_touchPressPos = p.position();
++			m_longPress->start(450);
++		}
++		else if (ev->type() == QEvent::TouchUpdate)
++		{
++			if (m_longPress->isActive() &&
++				((p.position() - m_touchPressPos).manhattanLength() > 14))
++				m_longPress->stop();
++		}
++		ev->ignore();
++		return;
++	}
++
++	if (pts.size() == 2)
++	{
++		ev->accept(); // claim the sequence; stops mouse synthesis
++		m_longPress->stop();
++		m_touchMulti = true;
++
++		QPointF p0 = pts[0].position();
++		QPointF p1 = pts[1].position();
++		QPointF c = (p0 + p1) * 0.5;
++		double  d = QLineF(p0, p1).length();
++		double  a = QLineF(p0, p1).angle() * 0.01745329; // degrees to rad
++
++		if (m_touchPrev)
++		{
++			GLScene* scene = GetActiveScene();
++			if (scene)
++			{
++				GLCamera& cam = scene->GetCamera();
++
++				// two-finger drag pans (the middle-drag formula)
++				QPointF dc = c - m_touchC;
++				if (!dc.isNull())
++					cam.PanView(vec3d(-dc.x(), dc.y(), 0.0));
++
++				// pinch zooms (Zoom multiplies the target distance:
++				// spreading the fingers must shrink it)
++				if ((m_touchD > 0) && (d > 0))
++					cam.Zoom(m_touchD / d);
++
++				// two-finger rotate orbits in-plane (as the
++				// RotateNativeGesture branch of gestureEvent does)
++				double da = a - m_touchA;
++				while (da >  3.14159265) da -= 2 * 3.14159265;
++				while (da < -3.14159265) da += 2 * 3.14159265;
++				if (da != 0.0)
++				{
++					quatd qz = quatd(-da, vec3d(0, 0, 1));
++					cam.Orbit(qz);
++				}
++
++				cam.Update(true);
++				update();
++			}
++		}
++
++		m_touchC = c;
++		m_touchD = d;
++		m_touchA = a;
++		m_touchPrev = true;
++		return;
++	}
++
++	// three or more points: claim and ignore
++	ev->accept();
++}
++
++void CGLView::OnLongPress()
++{
++	// The press must still be down, single, and nearly stationary
++	// (m_x1/m_y1 track the synthesized mouse position).
++	if (!mouseIsPressed || m_touchMulti || m_touchMenu) return;
++	if ((abs(m_x1 - m_x0) > 14) || (abs(m_y1 - m_y0) > 14)) return;
++
++	m_touchMenu = true; // the release that follows must not select
++
++	QMenu menu(m_pWnd);
++	m_pWnd->BuildContextMenu(menu);
++	menu.exec(mapToGlobal(m_touchPressPos.toPoint()));
++}
++
+ bool CGLView::gestureEvent(QNativeGestureEvent* ev)
+ {
+ 	GLScene* scene = GetActiveScene();
+diff --git a/FEBioStudio/GLView.h b/FEBioStudio/GLView.h
+index 66ae69c..0c78983 100644
+--- a/FEBioStudio/GLView.h
++++ b/FEBioStudio/GLView.h
+@@ -27,6 +27,7 @@ SOFTWARE.*/
+ #pragma once
+ #include <RHILib/rhiSceneView.h>
+ #include <QNativeGestureEvent>
++#include <QTimer>
+ #include <GLLib/GLCamera.h>
+ #include <FSCore/ColorMap.h>
+ #include "CommandManager.h"
+@@ -125,6 +126,11 @@ public:
+ 
+ 	bool SelectPivot(int x, int y);
+ 
++	// Touch support (patches 0012/0013): pick-tolerance multiplier
++	// for the current input source (1 = mouse, 3 = touch), read by
++	// GLViewSelector through its view pointer.
++	int PickToleranceScale() const { return m_pickScale; }
++
+ 	void SetCoordinateSystem(int nmode);
+ 	
+ 	void UndoViewChange();
+@@ -158,6 +164,7 @@ protected:
+ 	void mouseReleaseEvent(QMouseEvent* ev) override;
+ 	void wheelEvent       (QWheelEvent* ev) override;
+ 	void mouseDoubleClickEvent(QMouseEvent* ev) override;
++	void touchEvent       (QTouchEvent* ev) override;
+ 
+     bool gestureEvent     (QNativeGestureEvent* ev);
+     bool event            (QEvent* event) override;
+@@ -335,6 +342,29 @@ private:
+ 
+ 	bool mouseIsPressed = false;
+ 
++	// --- touch support (patch 0012) ---
++	// m_touchMulti / m_touchMenu are set by the touch layer and
++	// read by mouseReleaseEvent: the synthesized mouse release
++	// that ends a multi-touch gesture (or follows a long-press
++	// menu) must not run the one-finger click-select / undoable
++	// view-change bookkeeping. They are cleared by the touch
++	// layer at the end of the touch sequence, never by the
++	// release handler itself.
++	bool m_touchMulti = false;
++	bool m_touchMenu  = false;
++	int  m_pickScale  = 1;
++
++	// two-point gesture state (previous frame)
++	bool    m_touchPrev = false;
++	QPointF m_touchC;
++	double  m_touchD = 0.0;
++	double  m_touchA = 0.0;
++
++	// long-press (context menu) state
++	QPointF m_touchPressPos;
++	QTimer* m_longPress = nullptr;
++	void OnLongPress();
++
+ 	int frameCapturesRequested = 0;
+ 
+ 	static GLViewSettings	m_view;

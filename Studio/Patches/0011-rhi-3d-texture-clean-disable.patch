@@ -1,0 +1,53 @@
+diff --git a/RHILib/rhiTexture.cpp b/RHILib/rhiTexture.cpp
+index da8af17..fdb4964 100644
+--- a/RHILib/rhiTexture.cpp
++++ b/RHILib/rhiTexture.cpp
+@@ -84,9 +84,15 @@ void rhi::Texture3D::create(const C3DImage& img)
+ 		return;
+ 	}
+ 
+-	bool b = m_rhi->isTextureFormatSupported(fmt, QRhiTexture::ThreeDimensional);
+-	assert(b);
+-	if (!b) return;
++	// If the backend does not support 3D textures, leave the
++	// texture null: callers treat that as "volume rendering
++	// unavailable" and skip the pass cleanly. (This is the case
++	// on Metal, which is why the iOS port can use the Metal
++	// backend despite the caveat noted in MainWindow's
++	// MapToValidAPI — an assert here would abort debug builds
++	// and the old silent return left callers to build shader
++	// resources around a null texture.)
++	if (!m_rhi->isTextureFormatSupported(fmt, QRhiTexture::ThreeDimensional)) return;
+ 
+ 	// map data
+ 	if (!mapData(data, img, trgBytesPerVoxel))
+diff --git a/RHILib/rhiVolumeRenderPass.cpp b/RHILib/rhiVolumeRenderPass.cpp
+index 685503c..29b816f 100644
+--- a/RHILib/rhiVolumeRenderPass.cpp
++++ b/RHILib/rhiVolumeRenderPass.cpp
+@@ -107,7 +107,7 @@ void VolumeRenderPass::update(QRhiResourceUpdateBatch* u)
+ {
+ 	u->updateDynamicBuffer(ubuf.get(), 0, settings.size(), settings.data());
+ 
+-	if (m_tex.needsUpload)
++	if (m_tex.needsUpload && m_tex.texture)
+ 	{
+ 		m_tex.upload(u);
+ 		m_tex.needsUpload = false;
+@@ -134,6 +134,16 @@ void VolumeRenderPass::setTexture3D(GLTexture3D& tex)
+ 	{
+ 		C3DImage* im = tex.Get3DImage();
+ 		m_tex.create(*im);
++		if (!m_tex.texture)
++		{
++			// 3D textures unsupported on this backend (e.g.
++			// Metal): volume rendering stays disabled — draw()
++			// already skips texture-less passes. Don't set the
++			// upload flag or rebuild shader resources around a
++			// null texture.
++			tex.SetModified(false);
++			return;
++		}
+ 		m_tex.needsUpload = true;
+ 
+ 		// recreate shader resource for pipeline

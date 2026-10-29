@@ -1,0 +1,101 @@
+diff --git a/FEBioStudio/GLViewSelector.cpp b/FEBioStudio/GLViewSelector.cpp
+index 265660a..31e5ff0 100644
+--- a/FEBioStudio/GLViewSelector.cpp
++++ b/FEBioStudio/GLViewSelector.cpp
+@@ -989,13 +989,13 @@ void GLViewSelector::Finish()
+ }
+ 
+ //-----------------------------------------------------------------------------
+-int FindBeamIntersection(int x, int y, GObject* po, Transform& objTransform, GLViewTransform& viewTransform, Intersection& q)
++int FindBeamIntersection(int x, int y, GObject* po, Transform& objTransform, GLViewTransform& viewTransform, Intersection& q, int pickScale)
+ {
+ 	FSMesh* pm = po->GetFEMesh();
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 6;
++	int S = 6 * pickScale;
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	// try to select discrete elements
+@@ -1090,7 +1090,7 @@ void GLViewSelector::SelectFEElements(int x, int y)
+ 	// see if there is a beam element that is closer
+ 	vec3d p = transform.WorldToScreen(q.point);
+ 	Intersection q2;
+-	int index = FindBeamIntersection(x, y, po, T, transform, q2);
++	int index = FindBeamIntersection(x, y, po, T, transform, q2, m_glv->PickToleranceScale());
+ 	if ((index >= 0) && ((bfound == false) || (q2.point.z < p.z)))
+ 	{
+ 		if (index >= 0)
+@@ -1299,7 +1299,7 @@ void GLViewSelector::SelectFEEdges(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 6;
++	int S = 6 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GLViewTransform transform(m_glv);
+@@ -1510,7 +1510,7 @@ void GLViewSelector::SelectObjects(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 4;
++	int S = 4 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GObject* closestObject = 0;
+@@ -1850,7 +1850,7 @@ void GLViewSelector::SelectEdges(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 4;
++	int S = 4 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ //	double* a = m_glv->PlaneCoordinates();
+@@ -1911,7 +1911,7 @@ void GLViewSelector::SelectNodes(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 4;
++	int S = 4 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GLViewTransform transform(m_glv);
+@@ -1998,7 +1998,7 @@ void GLViewSelector::SelectDiscrete(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 4;
++	int S = 4 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GLViewTransform transform(m_glv);
+@@ -2187,7 +2187,7 @@ void GLViewSelector::SelectSurfaceEdges(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 6;
++	int S = 6 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GLViewTransform transform(m_glv);
+@@ -2288,7 +2288,7 @@ void GLViewSelector::SelectSurfaceNodes(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 6;
++	int S = 6 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GLViewTransform transform(m_glv);
+@@ -2820,7 +2820,7 @@ void GLViewSelector::SelectFENodes(int x, int y)
+ 
+ 	int X = x;
+ 	int Y = y;
+-	int S = 6;
++	int S = 6 * m_glv->PickToleranceScale(); // touch (patch 0013): finger-sized pick window
+ 	QRect rt(X - S, Y - S, 2 * S, 2 * S);
+ 
+ 	GLViewTransform transform(m_glv);
