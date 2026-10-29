@@ -217,13 +217,18 @@ rm -rf "$APP/_CodeSignature"
 echo "== verifying the app binary"
 file "$BIN"
 lipo -info "$BIN" | grep -q "arm64" || { echo "ERROR: binary is not arm64" >&2; exit 1; }
-if strings "$BIN" | grep -q "QIOSIntegration"; then
+# NOTE: strings into a file first — piping strings into grep -q
+# broke the pipe (SIGPIPE, "failed to flush output") and, under
+# pipefail, made a present plugin look missing (run 40805198400,
+# which had in fact linked the app successfully).
+strings "$BIN" > "$WORK/binary-strings.txt"
+if grep -q "QIOSIntegration" "$WORK/binary-strings.txt"; then
 	echo "   Qt iOS platform plugin: linked"
 else
 	echo "ERROR: QIOSIntegration plugin not found in binary — Qt platform plugin did not link" >&2
 	exit 1
 fi
-if strings "$BIN" | grep -q "neo-Hookean"; then
+if grep -q "neo-Hookean" "$WORK/binary-strings.txt"; then
 	echo "   FEBio material registration: present"
 else
 	echo "WARNING: 'neo-Hookean' string not found — FEBio registration may be incomplete"
