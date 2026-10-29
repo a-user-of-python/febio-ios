@@ -1,0 +1,22 @@
+diff --git a/FEBioStudio/CreatePanel.cpp b/FEBioStudio/CreatePanel.cpp
+index 2f3c221..4157652 100644
+--- a/FEBioStudio/CreatePanel.cpp
++++ b/FEBioStudio/CreatePanel.cpp
+@@ -224,4 +224,17 @@ void CCreatePanel::on_create_clicked()
+ void CCreatePanel::select_option(int id)
+ {
+ 	ui->setActivePane(id);
++
++#ifdef Q_OS_IOS
++	// iOS port: on desktop, selecting a shape only activates its
++	// parameter pane; the object is added by a separate "Create"
++	// button that sits in the toolbox's Parameters section, below
++	// the icon grid inside the panel's scroll area. In the iPad's
++	// Build panel that section is off-screen, so tapping a shape
++	// appeared to do nothing. On iOS, tapping a primitive's icon
++	// therefore also creates the object, with the pane's current
++	// (default) parameters. Panes that need viewport input first
++	// (springs, curves, lofts) keep the desktop flow.
++	if (dynamic_cast<CDefaultCreatePane*>(ui->currentPage())) on_create_clicked();
++#endif
+ }

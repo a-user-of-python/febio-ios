@@ -1,0 +1,37 @@
+diff --git a/FEBioStudio/MainWindow.cpp b/FEBioStudio/MainWindow.cpp
+index b3320c3..8d39393 100644
+--- a/FEBioStudio/MainWindow.cpp
++++ b/FEBioStudio/MainWindow.cpp
+@@ -2092,6 +2092,32 @@ void CMainWindow::readSettings()
+ 		restoreGeometry(settings.value("geometry").toByteArray());
+ 		restoreState(settings.value("state").toByteArray());
+ 
++#ifdef Q_OS_IOS
++		// iOS port: the desktop layout proportions leave the 3D
++		// view a small centre window on the iPad's screen. Once,
++		// on the first launch of a build carrying a new layout
++		// version (tracked in settings, so this also applies when
++		// upgrading an existing install), size the docks from the
++		// actual window size: side panels ~16-17% of the width,
++		// output panel ~12% of the height, and the document view
++		// takes everything else. Deferred until the window has
++		// its full-screen size. Users can rearrange afterwards,
++		// as on desktop; their layout is kept from then on.
++		if (settings.value("iosLayoutVersion", 0).toInt() < 1)
++		{
++			settings.setValue("iosLayoutVersion", 1);
++			QTimer::singleShot(0, this, [this]() {
++				QDockWidget* dockLeft  = qobject_cast<QDockWidget*>(ui->projectViewer->parentWidget());
++				QDockWidget* dockRight = qobject_cast<QDockWidget*>(ui->buildPanel->parentWidget());
++				QDockWidget* dockLog   = qobject_cast<QDockWidget*>(ui->logPanel->parentWidget());
++				if (dockLeft && dockRight)
++					resizeDocks({ dockLeft, dockRight }, { (int)(width() * 0.16), (int)(width() * 0.17) }, Qt::Horizontal);
++				if (dockLog)
++					resizeDocks({ dockLog }, { (int)(height() * 0.12) }, Qt::Vertical);
++			});
++		}
++#endif
++
+ 		QRect rt;
+ 		QRect defaultRect(geometry().center().x() - 400, geometry().center().y() - 300, 800, 600);
+ 		rt = settings.value("curveEditorSize", defaultRect).toRect();

@@ -288,11 +288,69 @@ PBS, SLURM, CUSTOM.
   takes it as a parameter). No signature changes to the
   Select* entry points.
 - **0014** FEBioStudio/FEBioStudio.cpp — vision scaling per
-  the touch-mapping report: platform font ×1.3 (replacing
+  the touch-mapping report: platform font scale (replacing
   0003's fixed 16 pt) + a short iOS-only stylesheet
   (tree/list item min-height 30 px, button/tab padding).
   QT_SCALE_FACTOR deliberately not used — it would scale the
   viewport's logical coordinates and corrupt picking math.
+  REVISED in the device fix round (2026-10-29): the first
+  device pass found ×1.3 too big — scale is now ×1.15 and the
+  button/tab vertical padding is halved (6 px → 3 px); the
+  30 px item min-height (touch minimum) is unchanged.
+- **0015** FEBio/FEBioFormat.cpp — importer fix: guard
+  ParseLogfileSection against leaf tags. A childless
+  `<logfile/>` is a single self-contained token in FECore's
+  XMLReader stream (no end tag follows it), but the function
+  advanced unconditionally and looped to an end tag that
+  never comes, running off the end of the file — the device
+  failure "FATAL ERROR: Unexpected end of file (line 202)"
+  that killed the built-in model's load. The sibling
+  ParsePlotfileSection already had this guard. Reproduced
+  and verified on the host against the real XMLReader: the
+  unpatched control flow throws exactly the device error;
+  with the guard the Output section parses and the import
+  loop ends at </febio_spec>. (The FEBio solver reads the
+  same file fine — it uses a different reader; the bundled
+  .feb in the IPA is byte-identical to Model/tension-block.feb.)
+- **0016** FEBioStudio/MainWindow.cpp — iOS layout
+  proportions: the desktop first-launch proportions left the
+  3D view ~40% × 35% of the iPad screen. In readSettings,
+  once per layout version (versioned settings key, so it
+  also applies over an upgraded install), deferred-size the
+  docks from the actual window size: left ≈16% and right
+  ≈17% of width, output ≈12% of height; the document view
+  takes the rest. Users can rearrange afterwards as on
+  desktop; their saved layout is kept.
+- **0017** FEBioStudio/CreatePanel.cpp — iOS create flow:
+  on desktop, tapping a shape icon only activates its
+  parameter pane; the object is added by a separate Create
+  button in the toolbox's Parameters section, below the
+  icon grid inside the panel's scroll area — off-screen in
+  the iPad's Build panel, so taps on shapes appeared to do
+  nothing (the buttons are plain QToolButtons and did
+  receive the taps). On iOS, selecting a primitive
+  (CDefaultCreatePane) now also creates the object with the
+  pane's default parameters: one tap adds the shape. Panes
+  needing viewport input (springs, curves, lofts) keep the
+  desktop flow.
+
+## M2 BUILD — GREEN (2026-10-29)
+
+Run **40812061278** succeeded with patches 0011–0014 applied
+(3D-texture clean disable, CGLView touch input, touch pick
+tolerance, vision scaling). Artifact `FEBioStudio-unsigned`:
+20,994,923 B zip / 21,027,897 B IPA, staged at
+~/workspace/your_files/FEBioStudio-unsigned.ipa (supersedes
+the M1 IPA at the same path). Device verdict pending: the
+checks that matter are (1) main window + auto-opened model +
+mesh visible (Metal viewport), (2) one-finger orbit + tap
+select with the larger tolerances, (3) pinch / two-finger pan
+/ rotate without selection corruption, (4) long-press context
+menu, (5) Run a solve from the real UI (DEFAULT launch config,
+in-process). Conditional item from the touch-mapping report,
+deliberately NOT patched yet: ModelTree long-press (patch only
+if the device shows the iOS QPA does not deliver context-menu
+events for long touches on the tree).
 
 ## M1 RESULT — GREEN (2026-10-29)
 

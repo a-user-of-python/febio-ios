@@ -1,0 +1,17 @@
+diff --git a/FEBio/FEBioFormat.cpp b/FEBio/FEBioFormat.cpp
+index eda3166..f0e82c9 100644
+--- a/FEBio/FEBioFormat.cpp
++++ b/FEBio/FEBioFormat.cpp
+@@ -2432,6 +2432,12 @@ bool FEBioFormat::ParseLogfileSection(XMLTag &tag)
+ 
+ 	FEBioInputModel &fem = GetFEBioModel();
+ 	
++	// iOS port fix: an empty logfile section (e.g. <logfile/>) has no
++	// child tags, and the XML reader produces no end tag for it, so
++	// the loop below would run off the end of the file. Bail out on
++	// leaf tags first -- the same guard ParsePlotfileSection uses.
++	if (tag.isleaf()) return true;
++
+ 	++tag;
+ 	do
+ 	{
