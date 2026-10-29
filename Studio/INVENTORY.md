@@ -238,6 +238,14 @@ PBS, SLURM, CUSTOM.
   FEBio's FEContactPotential and Studio's GLLib/RTLib call the
   API explicitly. The stub is the spike's device-verified
   single-threaded omp_stub.c, added to the app target.
+- **0010** CMakeLists.txt — 16 duplicate symbols at the app
+  link (run 40798904142): Studio vendors copies of FEBio's
+  QuadricFit/FENNQuery sources and both sides define a free
+  fact(int); force-loading every FEBio archive makes the
+  duplicates collide (on desktop FEBio links shared, so they
+  never do). The duplicated classes have identical layouts, so
+  the iOS link adds -multiply_defined suppress (first
+  definition wins, as with the dynamic linker).
 
 ## What M1 will and won't prove
 
