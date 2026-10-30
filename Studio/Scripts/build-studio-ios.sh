@@ -10,9 +10,10 @@
 #   3. Fetch FEBio Studio at the pinned commit (codeload tar.gz),
 #      apply the enumerated patches in Studio/Patches/, configure
 #      with Qt's iOS toolchain against the in-tree FEBio SDK, build.
-#   4. Bundle the spike's reference model, compile the launch
-#      storyboard, sanity-check the binary (arm64, Qt iOS platform
-#      plugin linked), package the unsigned IPA.
+#   4. Bundle the sample models and the app icon, compile the
+#      launch storyboard, sanity-check the binary (arm64, Qt iOS
+#      platform plugin linked, file-sharing plist keys true in
+#      the built app), package the unsigned IPA.
 #
 # Link note: FEBio registers its materials/models through static
 # factory objects. With static libraries the linker would drop
@@ -201,8 +202,10 @@ BIN="$APP/FEBioStudio"
 test -f "$BIN"
 
 # ------------------------------------------------------------- bundle
-echo "== bundling model + launch storyboard"
+echo "== bundling models, app icon + launch storyboard"
 cp "$ROOT/Model/tension-block.feb" "$APP/tension-block.feb"
+cp "$ROOT/Model/power-beam.feb" "$APP/power-beam.feb"
+cp "$ROOT"/Studio/iOS/AppIcon/*.png "$APP/"
 if xcrun -f ibtool >/dev/null 2>&1; then
 	xcrun ibtool --target-device ipad --minimum-deployment-target 17.0 \
 		--compile "$APP/LaunchScreen.storyboardc" \
@@ -234,6 +237,27 @@ else
 	echo "WARNING: 'neo-Hookean' string not found — FEBio registration may be incomplete"
 fi
 /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
+# File sharing must be ON in the built app — the app-folder import
+# (patch 0021) and the Files-app folder both depend on these keys.
+# Verify the artifact, not the source plist (build settings have
+# silently dropped these keys before).
+for key in UIFileSharingEnabled LSSupportsOpeningDocumentsInPlace UIRequiresFullScreen; do
+	if [ "$(/usr/libexec/PlistBuddy -c "Print :$key" "$APP/Info.plist" 2>/dev/null)" = "true" ]; then
+		echo "   plist $key: true"
+	else
+		echo "ERROR: $key is not true in the built app's Info.plist" >&2
+		exit 1
+	fi
+done
+# rc1 feature strings must be present in the binary.
+for s in "power-beam.feb" "Open from App Folder" "iOS port rc1"; do
+	if grep -q "$s" "$WORK/binary-strings.txt"; then
+		echo "   feature string present: $s"
+	else
+		echo "ERROR: feature string missing from binary: $s" >&2
+		exit 1
+	fi
+done
 
 # ------------------------------------------------------------ package
 echo "== packaging IPA"

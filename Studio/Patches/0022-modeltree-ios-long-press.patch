@@ -1,0 +1,109 @@
+diff --git a/FEBioStudio/ModelTree.cpp b/FEBioStudio/ModelTree.cpp
+index c061154..e5b1c01 100644
+--- a/FEBioStudio/ModelTree.cpp
++++ b/FEBioStudio/ModelTree.cpp
+@@ -33,6 +33,8 @@ SOFTWARE.*/
+ #include <FEMLib/FERigidLoad.h>
+ #include <QTreeWidgetItemIterator>
+ #include <QContextMenuEvent>
++#include <QMouseEvent>
++#include <QTimer>
+ #include <QDesktopServices>
+ #include <QHeaderView>
+ #include "ObjectProps.h"
+@@ -402,6 +404,19 @@ CModelTree::CModelTree(CModelViewer* view, QWidget* parent) : QTreeWidget(parent
+ //	QHeaderView* head = header();
+ //	head->setStretchLastSection(true);
+ 	setHeaderHidden(true);
++
++#ifdef Q_OS_IOS
++	// long-press timer for the context menu (patch 0022)
++	m_lpTimer = new QTimer(this);
++	m_lpTimer->setSingleShot(true);
++	connect(m_lpTimer, &QTimer::timeout, this, [this]() {
++		if (!m_lpPressed) return;
++		m_lpPressed = false;
++		QContextMenuEvent cme(QContextMenuEvent::Other,
++			viewport()->mapFromGlobal(m_lpGlobalPos), m_lpGlobalPos);
++		contextMenuEvent(&cme);
++	});
++#endif
+ }
+ 
+ void CModelTree::SetFilter(int n)
+@@ -493,6 +508,41 @@ bool CModelTree::GetSelection(std::vector<FSObject*>& objList)
+ 	}
+ }
+ 
++#ifdef Q_OS_IOS
++//-----------------------------------------------------------------------------
++// iOS port (patch 0022): press-and-hold on the tree opens the
++// context menu. Only synthesized (touch) presses arm the timer;
++// mouse and trackpad keep the platform's right-click behaviour.
++// Movement beyond the tap deadzone or an early release cancels.
++void CModelTree::mousePressEvent(QMouseEvent* ev)
++{
++	QTreeWidget::mousePressEvent(ev);
++
++	if (ev->source() == Qt::MouseEventSynthesizedBySystem)
++	{
++		m_lpPressed = true;
++		m_lpGlobalPos = ev->globalPosition().toPoint();
++		m_lpTimer->start(450);
++	}
++}
++
++void CModelTree::mouseMoveEvent(QMouseEvent* ev)
++{
++	QTreeWidget::mouseMoveEvent(ev);
++
++	if (m_lpPressed &&
++		((ev->globalPosition().toPoint() - m_lpGlobalPos).manhattanLength() > 14))
++		m_lpTimer->stop();
++}
++
++void CModelTree::mouseReleaseEvent(QMouseEvent* ev)
++{
++	m_lpPressed = false;
++	m_lpTimer->stop();
++	QTreeWidget::mouseReleaseEvent(ev);
++}
++#endif
++
+ void CModelTree::contextMenuEvent(QContextMenuEvent* ev)
+ {
+ 	QPoint pt = ev->globalPos();
+diff --git a/FEBioStudio/ModelTree.h b/FEBioStudio/ModelTree.h
+index 6085ff5..9340641 100644
+--- a/FEBioStudio/ModelTree.h
++++ b/FEBioStudio/ModelTree.h
+@@ -176,6 +176,17 @@ public:
+ 
+ 	void contextMenuEvent(QContextMenuEvent* ev) override;
+ 
++#ifdef Q_OS_IOS
++	// iOS port (patch 0022): the platform does not deliver a
++	// context-menu event for a long touch, so the tree's context
++	// menu was unreachable by touch. These handlers run a
++	// press-and-hold timer (touch input only) that dispatches
++	// the event contextMenuEvent already implements.
++	void mousePressEvent(QMouseEvent* ev) override;
++	void mouseMoveEvent(QMouseEvent* ev) override;
++	void mouseReleaseEvent(QMouseEvent* ev) override;
++#endif
++
+ 	int Items() const { return (int) m_data.size(); }
+ 	CModelTreeItem& GetItem(int n) { return m_data[n]; }
+ 
+@@ -222,5 +233,11 @@ private:
+ 	CModelViewer*				m_view;
+ 	int							m_nfilter;
+ 
++#ifdef Q_OS_IOS
++	class QTimer*					m_lpTimer = nullptr;
++	QPoint							m_lpGlobalPos;
++	bool							m_lpPressed = false;
++#endif
++
+ 	friend class CModelViewer;
+ };

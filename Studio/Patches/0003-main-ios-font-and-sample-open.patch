@@ -30,25 +30,89 @@ index 688d39d..3bed57d 100644
  #ifdef WIN32
  //	app.setStyle("fusion");
  #endif
-@@ -182,6 +196,24 @@ int main(int argc, char* argv[])
+@@ -182,6 +196,88 @@ int main(int argc, char* argv[])
  		wnd.OpenFile(argv[1], false);
  	}
  
 +#ifdef Q_OS_IOS
-+	// iOS port: open the sample model that ships inside the app
-+	// bundle, so the port can be exercised without depending on the
-+	// iOS file dialog. The file is first copied to the app's
-+	// Documents folder (writable; FEBio writes its log and plot
-+	// files next to the model), then opened through the same entry
-+	// point the desktop build uses for command-line files.
-+	if (argc < 2)
++	// iOS port: seed the app's shared Documents folder (the folder
++	// the Files app shows as "On My iPad > FEBio Studio") and open
++	// the bundled showcase model, so the port can be exercised
++	// without depending on the iOS file dialog. Files live in
++	// Documents (writable; FEBio writes its log and plot files next
++	// to the model, so results stay reachable there too) and are
++	// opened through the same entry point the desktop build uses
++	// for command-line files. Seeding never overwrites: the folder
++	// belongs to the user once written.
 +	{
 +		QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-+		QString dst = docs + "/tension-block.feb";
-+		if (!QFile::exists(dst))
-+			QFile::copy(QCoreApplication::applicationDirPath() + "/tension-block.feb", dst);
-+		if (QFile::exists(dst))
-+			wnd.OpenFile(dst, false);
++		QString appDir = QCoreApplication::applicationDirPath();
++
++		QString readme = docs + "/README.txt";
++		if (!QFile::exists(readme))
++		{
++			QFile f(readme);
++			if (f.open(QIODevice::WriteOnly))
++			{
++				f.write(
++					"FEBio Studio - your app folder\n"
++					"\n"
++					"This folder belongs to FEBio Studio on this iPad. Files you\n"
++					"copy here can be opened from inside the app:\n"
++					"  File > Open from App Folder ...\n"
++					"(They also appear in the standard Open and Save dialogs.)\n"
++					"\n"
++					"You can copy files in with the Files app, AirDrop, or any\n"
++					"app that can save to On My iPad > FEBio Studio.\n"
++					"\n"
++					"Files you can open as models or results:\n"
++					"  .feb (FEBio input), .fsm / .fs2 (FEBio Studio models),\n"
++					"  .xplt (results), .inp (Abaqus), .k / .dyn (LS-DYNA),\n"
++					"  .vtk / .vtu / .vtp / .pvd (VTK)\n"
++					"\n"
++					"Geometry and mesh files you can import into a model\n"
++					"(Open from App Folder > Import Geometry):\n"
++					"  .stl, .ply, .obj, .dxf, .inp, .k, .nas, .unv, .cdb,\n"
++					"  .msh, .byu, .vtk and more.\n"
++					"An imported mesh joins the model like any other geometry:\n"
++					"give it a material and boundary conditions, then Run -\n"
++					"the job solves on this iPad.\n"
++					"\n"
++					"Not in this build: STEP / IGES / BREP CAD files (.step,\n"
++					".stp, .iges, .brep). Importing CAD files needs the\n"
++					"Open CASCADE + Netgen toolkits, which are not part of\n"
++					"the iOS build yet. Export your CAD as STL or another\n"
++					"mesh format instead.\n"
++					"\n"
++					"Results: when a job runs, its .xplt plot file and .log\n"
++					"file are written next to the model file - so models\n"
++					"kept in this folder keep their results here too,\n"
++					"ready to copy out.\n"
++					"\n"
++					"Two sample models are included: power-beam.feb (a beam\n"
++					"that bends - good for trying Run and the displacement\n"
++					"colours) and tension-block.feb (a small block in\n"
++					"tension).\n");
++				f.close();
++			}
++		}
++
++		const char* samples[] = { "power-beam.feb", "tension-block.feb" };
++		for (const char* s : samples)
++		{
++			QString dst = docs + "/" + s;
++			if (!QFile::exists(dst))
++				QFile::copy(appDir + "/" + s, dst);
++		}
++
++		// Auto-open the showcase sample: the power beam's bending
++		// is far easier to see than the tension block's stretch.
++		if (argc < 2)
++		{
++			QString dst = docs + "/power-beam.feb";
++			if (QFile::exists(dst))
++				wnd.OpenFile(dst, false);
++		}
 +	}
 +#endif
 +

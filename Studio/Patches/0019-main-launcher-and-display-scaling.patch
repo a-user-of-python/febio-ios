@@ -2,7 +2,7 @@ diff --git a/FEBioStudio/FEBioStudio.cpp b/FEBioStudio/FEBioStudio.cpp
 index 42aacf7..e980f75 100644
 --- a/FEBioStudio/FEBioStudio.cpp
 +++ b/FEBioStudio/FEBioStudio.cpp
-@@ -87,6 +87,225 @@ public:
+@@ -87,6 +87,228 @@ public:
  	}
  };
  
@@ -189,6 +189,9 @@ index 42aacf7..e980f75 100644
 +		title->setFont(tf);
 +		title->setAlignment(Qt::AlignCenter);
 +		lay->addWidget(title);
++		QLabel* version = new QLabel(QStringLiteral("FEBio Studio 3.2.0 - FEBio 4.13 - iOS port rc1"));
++		version->setAlignment(Qt::AlignCenter);
++		lay->addWidget(version);
 +		lay->addStretch(1);
 +
 +		QHBoxLayout* row = new QHBoxLayout;
@@ -228,7 +231,7 @@ index 42aacf7..e980f75 100644
  // starting point of application
  int main(int argc, char* argv[])
  {
-@@ -102,26 +321,11 @@ int main(int argc, char* argv[])
+@@ -102,26 +324,11 @@ int main(int argc, char* argv[])
  	FBSApplication app(argc, argv);
  
  #ifdef Q_OS_IOS
@@ -260,7 +263,7 @@ index 42aacf7..e980f75 100644
  #endif
  
  #ifdef WIN32
-@@ -195,7 +399,15 @@ int main(int argc, char* argv[])
+@@ -195,7 +402,15 @@ int main(int argc, char* argv[])
  
  	app.SetMainWindow(&wnd);
  

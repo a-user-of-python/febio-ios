@@ -1,7 +1,7 @@
 # FEBio Studio iOS port — Phase A inventory
 
 Facts read from the sources (not docs alone), 2026-10-28. This is the
-plan of record for the port Sean directed: the *real* FEBio Studio,
+plan of record for the port the user directed: the *real* FEBio Studio,
 Qt and all, functioning and looking like the desktop program, plus
 touch support — maximum reuse, minimum reimplementation.
 
@@ -72,7 +72,7 @@ PBS, SLURM, CUSTOM.
 - **DEFAULT = in-process.** `CFEBioJobManager::startDefaultJob`
   starts `CFEBioJobThread` (a QThread) → `FEBioRun` → FEBioLib
   `febio::SolveModel` in the app process. This is the standard Run
-  path and is exactly the API the spike proved on Sean's iPad.
+  path and is exactly the API the spike proved on the target iPad.
   iOS-safe.
 - **LOCAL = subprocess.** `CLocalJobProcess` (QProcess) spawns an
   external febio executable. Cannot work on iOS (no subprocesses).
@@ -154,13 +154,13 @@ PBS, SLURM, CUSTOM.
 
 | Desktop facility | iOS mapping |
 |---|---|
-| File dialogs (QFileDialog everywhere) | Qt's iOS plugin backs QFileDialog with the native document picker (partial: single-file open/save OK, no directory picker). Sean's signing setup has broken system pickers in other apps, so M1 does not depend on it (patch 0003 auto-opens the bundled sample). Milestone 3 switches to the proven app-folder pattern (app creates its folder under On My iPad; UIFileSharingEnabled is set in the iOS plist). |
+| File dialogs (QFileDialog everywhere) | Qt's iOS plugin backs QFileDialog with the native document picker (partial: single-file open/save OK, no directory picker). The user's signing setup has broken system pickers in other apps, so M1 does not depend on it (patch 0003 auto-opens the bundled sample). Milestone 3 switches to the proven app-folder pattern (app creates its folder under On My iPad; UIFileSharingEnabled is set in the iOS plist). |
 | Drag & drop | Works inside the app via Qt; drops from other apps are limited on iOS. Not needed for M1. |
-| Keyboard shortcuts | QAction/QShortcut fire from hardware-keyboard key events on iOS — expected to work with Sean's keyboard; verified in the keyboard+mouse milestone. |
+| Keyboard shortcuts | QAction/QShortcut fire from hardware-keyboard key events on iOS — expected to work with a hardware keyboard; verified in the keyboard+mouse milestone. |
 | Mouse | Qt iOS delivers pointer events incl. right-click and wheel from mice/trackpads; `UIApplicationSupportsIndirectInputEvents` is set in the plist. Viewport orbit/pan/zoom is mouse-driven upstream (rhiSceneView mouse handlers) and works from touch-as-mouse in M1. |
 | Touch | M1: taps act as clicks (Qt synthesizes mouse events from touch). Dedicated gestures (one-finger orbit, pinch zoom, two-finger pan, forgiving tap-to-select) are the viewport milestone — added in RHILib/rhiSceneView event handling, upstream of all tools, so every tool inherits them. |
 | OpenGL context creation | None — QRhi creates the Metal device/swapchain (RhiWindow). |
-| Fonts | Qt iOS uses the system font. Patch 0003 raises the app base font to 16 pt on iOS (font scaling only — no UI redesign, per Sean's rule). |
+| Fonts | Qt iOS uses the system font. Patch 0003 raises the app base font to 16 pt on iOS (font scaling only — no UI redesign, per the user's rule). |
 | Clipboard | QClipboard works on iOS for text. |
 | Settings (QSettings) | Works (app-container plist). First launch uses defaults; the settings dialog is upstream UI. |
 | Splash screen | A pixmap QSplashScreen — plain widget, works. |
@@ -416,7 +416,7 @@ first launch does and does not establish.
 ## What M1 will and won't prove
 
 Will: the real Studio binary (all 25 libs + app) cross-compiles
-and links for iOS arm64; Sean can launch it, see the genuine main
+and links for iOS arm64; The user can launch it, see the genuine main
 window (menus, model tree, docks, viewport), and the bundled
 tension-block model opens in it.
 
@@ -462,3 +462,139 @@ and whether the size is comfortable now.
 Note: this section was appended locally after the code push
 landed; it rides along with the next Studio/** push (a
 doc-only push would trigger a redundant full rebuild).
+
+## DEVICE FIX ROUND 2 — GREEN (2026-10-29)
+
+Device verdict #2 on the fix-round-1 build: the tension block
+loads ("success!" in the log, Objects (1) in the tree, block
+visible) and the full load -> run -> results loop is
+device-verified. New feedback: (A) the app renders squished at
+a non-native size — the user wants it to treat the iPad like a
+monitor at full native resolution; (B) a launch screen with
+two controls — a "Launch FEBio" button and a gear-icon
+settings button; (C) the settings must include a Display
+Scaling control; (D) the left Model panel is vertically
+squished (tree cut short, dead space below).
+
+Fixes: 0018 (resolution diagnostics in the Log: screen pt /
+DPR / native px / window pt / view px), 0019 (start screen +
+gear settings + display scaling 75-175%, default 115%, in
+QSettings, replacing 0014's hard-coded 1.15; showFullScreen
+on iOS), 0020 (layout v2: left dock group takes the full
+height the bottom dock leaves; Model panel tree gets 2/3 of
+its internal split), and UIRequiresFullScreen added to
+Studio/iOS/Info.plist.
+
+Run **40910674041** (build-studio.yml, commit 4850c7d8)
+succeeded on the standard macos-26 runner — job "FEBio Studio
+unsigned IPA" completed/success. Artifact FEBioStudio-unsigned:
+20,997,822 B zip / **21,035,344 B IPA, md5
+f8a903fa7c64a0990447ca2f4fb33b26**, staged at
+~/workspace/your_files/FEBioStudio-unsigned.ipa
+(byte-identical, md5 verified after staging). Shipped-binary
+checks: bundle com.user.febiostudio, arm64, UIRequiresFullScreen
+= true in the bundled plist, and the new strings present in the
+executable ("Launch FEBio", "displayScalePercent",
+"Display Scaling", "iosLayoutVersion", the resolution-diagnostic
+format strings). Note: every push also fires the legacy spike
+workflow (build-ipa.yml); its run (40910674005) is NOT this
+build — the Studio run is 40910674041.
+
+Device verdict pending. The retest that matters: open app ->
+start screen appears -> gear -> Display Scaling (set e.g.
+140%) -> Save -> Launch FEBio -> Studio opens at the new
+scale, block auto-loads, left Model panel full height, and
+the Log shows the new "screen = ... / main window = ..."
+lines (view px should equal native px) -> quit, reopen,
+change scaling back to 115%, relaunch, confirm text size
+changed.
+
+Note: this section was appended locally after the code push
+landed; it rides along with the next Studio/** push (a
+doc-only push would trigger a redundant full rebuild).
+
+## RC1 PUSH — gap-closure round (2026-10-29)
+
+Commission: deep-dive audit for what's missing, add it,
+get as close to releasable as possible, ship as GitHub Release
+"rc1". The full audit lives in the goal workspace
+(hidden_files/rc1-gap-ledger.md). What changed:
+
+- **0003 (revised)** — auto-open sample is now **power-beam.feb**
+  (50×8×8 mm cantilever, −10 mm tip displacement, 20 steps;
+  host-verified: normal termination, max disp 10.2755 mm, max
+  von Mises 0.5618). The iOS block also **seeds the shared
+  Documents folder** on launch (never overwriting): README.txt
+  (what to copy in, which file types, the STEP note), plus
+  copies of both sample models. tension-block.feb remains
+  bundled and seeded.
+- **0019 (revised)** — the launcher shows a version line:
+  "FEBio Studio 3.2.0 - FEBio 4.13 - iOS port rc1".
+- **0021** FEBioStudio.cpp + MainWindow.h + MainMenu.cpp +
+  menuFile.cpp — iOS file access. (a) `AA_DontUseNativeDialogs`
+  is set before the application object exists, so every
+  QFileDialog in Studio (~60 call sites) is a Qt-widget dialog
+  inside the app instead of the native document picker (which
+  is unreliable under some signing setups). (b) File →
+  **"Open from App Folder …"**: a list browser over Documents.
+  **Open** routes through `CMainWindow::OpenFile` (the desktop
+  dispatch); **Import Geometry** routes through
+  `CMainWindow::ImportFiles` (the REGISTER_CLASS4 reader
+  registry), so an imported mesh lands in the active model and
+  goes through the normal mesh/material/BC → Run path. CAD
+  extensions (step/stp/iges/igs/brep/brp) get an explicit
+  "not in this build" message. The browser slot is compiled on
+  all platforms (moc references it); only the menu action is
+  iOS-only. Importer census (from the registry): feb, inp, k,
+  dyn, stl, ply, obj, dxf, nas, unv, cdb, msh, byu, surf,
+  hmascii, mphtxt, mesh, ele, elem, raw, pvo, vtk, vtu, vtp
+  work; documents/results additionally fsm, fs2, fsprj, prv,
+  xplt, pvd, vtm, fsps, n, key, log, txt.
+- **0022** ModelTree.h/.cpp — the tree's context menu existed
+  (contextMenuEvent) but no long touch ever delivered the
+  event on iOS. iOS-only 450 ms press-and-hold timer
+  (touch-source presses only; movement >14 px or release
+  cancels) dispatches the event at the press point — the same
+  pattern as the viewport's 0012 long-press.
+- **0023** GLView.cpp — wheel classification: on iOS a Magic
+  Keyboard trackpad reports as a non-synthesized wheel source
+  *with* pixel deltas, so it took the mouse branch (step zoom)
+  instead of panning. iOS-only: the discrete branch now also
+  requires a null pixel delta; trackpads take the existing
+  pixel-delta pan branch (Alt = zoom). Notched wheels are
+  unchanged.
+- **0024** menuHelp.cpp + menuPost.cpp — Help → About gains
+  iOS-port lines (identification, attribution context, the
+  headline limits). Post → Volume Render on iOS explains that
+  it needs 3D textures the Metal backend doesn't provide,
+  instead of silently adding a renderer that draws nothing
+  (0011 made it crash-free; this makes it honest).
+- **App icon** — the port previously shipped NO iOS icon (only
+  the desktop .icns). Original icon set (bending hex-mesh beam
+  with a von Mises colormap, drawn for this port) in
+  Studio/iOS/AppIcon/, wired via CFBundleIcons +
+  CFBundleIcons~ipad and copied into the .app by the build
+  script.
+- **Build script** — bundles power-beam.feb + the icon PNGs,
+  and now FAILS the build if UIFileSharingEnabled,
+  LSSupportsOpeningDocumentsInPlace or UIRequiresFullScreen
+  is not true in the *built* app's plist, or if the rc1
+  feature strings ("power-beam.feb", "Open from App Folder",
+  "iOS port rc1") are missing from the binary.
+- Patch chain 0001–0024 re-verified to apply in order to a
+  pristine tree (result byte-identical to the development
+  tree).
+
+**Deliberately NOT in rc1** (full reasoning in the ledger):
+STEP/IGES/BREP import + CAD meshing — Studio's CAD_FEATURES
+couples OpenCASCADE *and* Netgen (importers are HAS_OCC stubs;
+CAD meshing is Netgen's OCC module), neither has an iOS build
+in this project, and an unmeshable import would not reach a
+runnable model. Two-finger rotate sign — both paths use the
+designed negative orbit factor; the residual uncertainty is
+the QPA gesture-sign convention, which static analysis cannot
+settle — left for a one-gesture device check rather than a
+blind flip. Non-DEFAULT job configs, Python scripting, model
+repository, FFmpeg export, ITK stacks, MMG/TetGen remeshing —
+CMake-off/subprocess-bound, documented as limits in the repo
+README and the in-app About.

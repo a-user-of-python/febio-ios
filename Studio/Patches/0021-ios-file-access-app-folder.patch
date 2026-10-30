@@ -1,0 +1,188 @@
+diff --git a/FEBioStudio/FEBioStudio.cpp b/FEBioStudio/FEBioStudio.cpp
+index 7af480c..27679d9 100644
+--- a/FEBioStudio/FEBioStudio.cpp
++++ b/FEBioStudio/FEBioStudio.cpp
+@@ -320,6 +320,16 @@ int main(int argc, char* argv[])
+ 
+ 	ColorMapManager::Initialize();
+ 
++#ifdef Q_OS_IOS
++	// iOS port (patch 0021): never use the native document picker.
++	// Every QFileDialog in Studio (open, save, import, export,
++	// directory picks) becomes a Qt-widget dialog that browses the
++	// app sandbox directly. The native picker is unreliable under
++	// some signing setups, and the app's dialogs can navigate the
++	// shared Documents folder without leaving the app.
++	QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
++#endif
++
+ 	// create the application object
+ 	FBSApplication app(argc, argv);
+ 
+diff --git a/FEBioStudio/MainMenu.cpp b/FEBioStudio/MainMenu.cpp
+index 86e8454..3d319a6 100644
+--- a/FEBioStudio/MainMenu.cpp
++++ b/FEBioStudio/MainMenu.cpp
+@@ -38,6 +38,11 @@ CMainMenu::CMainMenu(CMainWindow* wnd) : m_wnd(wnd)
+ 	actionNewModel = createAction("New Model ...", "actionNewModel", "new");
+ 	QAction* actionNewProject = createAction("New Project ...", "actionNewProject");
+ 	actionOpen = createAction("Open Model File ...", "actionOpen", "open"); actionOpen->setShortcuts(QKeySequence::Open);
++#ifdef Q_OS_IOS
++	// iOS port (patch 0021): browse the app's shared Documents
++	// folder from inside the app (see on_actionAppFolder_triggered).
++	QAction* actionAppFolder = createAction("Open from App Folder ...", "actionAppFolder");
++#endif
+ 	actionSave = createAction("Save", "actionSave", "save"); actionSave->setShortcuts(QKeySequence::Save);
+ 	QAction* actionSaveAs = createAction("Save As ...", "actionSaveAs"); actionSaveAs->setShortcuts(QKeySequence::SaveAs);
+ 	QAction* actionSaveAll = createAction("Save All", "actionSaveAll");
+@@ -380,6 +385,9 @@ CMainMenu::CMainMenu(CMainWindow* wnd) : m_wnd(wnd)
+ 	menuFile->addAction(actionNewProject);
+ 	menuFile->addSeparator();
+ 	menuFile->addAction(actionOpen);
++#ifdef Q_OS_IOS
++	menuFile->addAction(actionAppFolder);
++#endif
+ 	menuFile->addAction(menuRecentFiles->menuAction());
+ 	menuFile->addAction(actionOpenProject);
+ 	menuFile->addAction(menuRecentProjects->menuAction());
+diff --git a/FEBioStudio/MainWindow.h b/FEBioStudio/MainWindow.h
+index 2a24abc..0f8a27b 100644
+--- a/FEBioStudio/MainWindow.h
++++ b/FEBioStudio/MainWindow.h
+@@ -452,6 +452,7 @@ public slots:
+ 	void on_actionSaveProject_triggered();
+ 	void on_actionExportFEModel_triggered();
+ 	void on_actionImportGeometry_triggered();
++	void on_actionAppFolder_triggered();
+ 	void on_actionExportGeometry_triggered();
+ 	void on_actionImportProject_triggered();
+ 	void on_actionExportProject_triggered();
+diff --git a/FEBioStudio/menuFile.cpp b/FEBioStudio/menuFile.cpp
+index 856de98..290b822 100644
+--- a/FEBioStudio/menuFile.cpp
++++ b/FEBioStudio/menuFile.cpp
+@@ -31,6 +31,15 @@ SOFTWARE.*/
+ #include <QMessageBox>
+ #include <QInputDialog>
+ #include <QDesktopServices>
++#include <QDialog>
++#include <QDir>
++#include <QFileInfo>
++#include <QHBoxLayout>
++#include <QLabel>
++#include <QListWidget>
++#include <QPushButton>
++#include <QStandardPaths>
++#include <QVBoxLayout>
+ #include "ui_mainwindow.h"
+ #include "ModelDocument.h"
+ #include "ModelFileWriter.h"
+@@ -269,6 +278,108 @@ void CMainWindow::on_actionOpen_triggered()
+ 	}
+ }
+ 
++//-----------------------------------------------------------------------------
++// iOS port (patch 0021): browse the app's shared Documents folder
++// (the folder the Files app shows as "On My iPad > FEBio Studio").
++// Compiled on every platform (moc references the slot); the
++// File-menu action that triggers it only exists on iOS.
++// from inside the app, without the native document picker.
++// "Open" routes through OpenFile (the desktop dispatch: .feb asks
++// model-vs-XML, .xplt opens results, .fsm/.inp/.k/VTK open as
++// documents); "Import Geometry" routes through ImportFiles (the
++// extension-reader registry) so a mesh lands in the active model,
++// ready for materials, boundary conditions and Run.
++void CMainWindow::on_actionAppFolder_triggered()
++{
++	QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
++
++	// every extension Studio can open as a document or read
++	// through its geometry-import registry (menuFile.cpp's
++	// REGISTER_CLASS4 list)
++	static const char* exts[] = {
++		"fsm", "fs2", "fsprj", "prv", "feb", "xplt", "inp", "n", "dyn", "key", "k",
++		"stl", "vtk", "vtu", "vtp", "vtm", "pvd", "fsps", "log", "txt",
++		"ply", "obj", "dxf", "nas", "unv", "cdb", "msh", "byu", "surf", "hmascii",
++		"mphtxt", "mesh", "ele", "elem", "raw", "pvo",
++		"step", "stp", "iges", "igs", "brep", "brp"
++	};
++	QStringList nameFilters;
++	for (const char* e : exts) nameFilters << QString("*.") + e;
++
++	QDir dir(docs);
++	QStringList files = dir.entryList(nameFilters, QDir::Files, QDir::Name);
++
++	QDialog dlg(this);
++	dlg.setWindowTitle("App Folder");
++	QVBoxLayout* lay = new QVBoxLayout(&dlg);
++
++	QLabel* info = new QLabel(files.isEmpty()
++		? QString("No files yet.\n\nCopy files into the FEBio Studio folder in the Files app\n(On My iPad > FEBio Studio), then open this list again.\nSee README.txt in that folder for the supported file types.")
++		: QString("Files in the FEBio Studio folder (Files > On My iPad > FEBio Studio):"));
++	info->setWordWrap(true);
++	lay->addWidget(info);
++
++	QListWidget* list = new QListWidget;
++	for (const QString& fn : files)
++	{
++		QFileInfo fi(dir.filePath(fn));
++		QListWidgetItem* it = new QListWidgetItem(
++			QString("%1  (%2 KB)").arg(fn).arg((fi.size() + 1023) / 1024));
++		it->setData(Qt::UserRole, dir.filePath(fn));
++		list->addItem(it);
++	}
++	if (list->count() > 0) list->setCurrentRow(0);
++	lay->addWidget(list, 1);
++
++	QHBoxLayout* row = new QHBoxLayout;
++	QPushButton* openBtn = new QPushButton("Open");
++	QPushButton* importBtn = new QPushButton("Import Geometry");
++	QPushButton* closeBtn = new QPushButton("Close");
++	openBtn->setMinimumHeight(48);
++	importBtn->setMinimumHeight(48);
++	closeBtn->setMinimumHeight(48);
++	openBtn->setDefault(true);
++	row->addWidget(openBtn);
++	row->addWidget(importBtn);
++	row->addStretch(1);
++	row->addWidget(closeBtn);
++	lay->addLayout(row);
++
++	connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
++	connect(openBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
++	connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
++	connect(importBtn, &QPushButton::clicked, &dlg, [&dlg]() { dlg.done(2); });
++
++	const int r = dlg.exec();
++	if (r == 0) return;
++
++	QListWidgetItem* cur = list->currentItem();
++	if (cur == nullptr) return;
++	QString path = cur->data(Qt::UserRole).toString();
++	if (path.isEmpty()) return;
++
++	// CAD formats are registered readers, but they need the CAD
++	// toolkit (Open CASCADE + Netgen), which the iOS build does
++	// not include yet — say so plainly instead of failing obscurely.
++	QString ext = QFileInfo(path).suffix().toLower();
++	static const char* cadExts[] = { "step", "stp", "iges", "igs", "brep", "brp" };
++	for (const char* c : cadExts)
++	{
++		if (ext == c)
++		{
++			QMessageBox::information(this, "FEBio Studio",
++				"STEP, IGES and BREP files need the CAD toolkit (Open CASCADE + Netgen), "
++				"which is not part of the iOS build yet.\n\n"
++				"Export the part as STL (or another mesh format) and import that instead: "
++				"an imported mesh can be given materials and boundary conditions, and run like any other model.");
++			return;
++		}
++	}
++
++	if (r == 2) ImportFiles(QStringList(path));
++	else OpenFile(path, false);
++}
++
+ void CMainWindow::on_actionSave_triggered()
+ {
+ 	CDocument* doc = GetDocument();

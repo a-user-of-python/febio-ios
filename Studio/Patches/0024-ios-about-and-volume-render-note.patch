@@ -1,0 +1,48 @@
+diff --git a/FEBioStudio/menuHelp.cpp b/FEBioStudio/menuHelp.cpp
+index 10f96b3..3a3dfc0 100644
+--- a/FEBioStudio/menuHelp.cpp
++++ b/FEBioStudio/menuHelp.cpp
+@@ -129,6 +129,19 @@ void CMainWindow::on_actionAbout_triggered()
+ 		<hr>"\
+ 	).arg(version);
+ 
++#ifdef Q_OS_IOS
++	// iOS port (patch 0024): identify the port and its limits in
++	// the one place every user can find them.
++	txt += QString(
++		"<p><b>iOS port rc1</b> (unofficial). The FEBio 4.13 solver runs "
++		"entirely on this iPad; touch controls, display scaling and the "
++		"app-folder import were added for iOS.</p>"
++		"<p>Not included in this build: CAD import (STEP/IGES/BREP), "
++		"Python scripting, remote or external-process jobs, volume "
++		"rendering (needs 3D textures), video export, and the online "
++		"model repository.</p>");
++#endif
++
+ 	QMessageBox about(this);
+ 	about.setWindowTitle("About FEBio Studio");
+ 	about.setText(txt);
+diff --git a/FEBioStudio/menuPost.cpp b/FEBioStudio/menuPost.cpp
+index 2ac8f63..020cb94 100644
+--- a/FEBioStudio/menuPost.cpp
++++ b/FEBioStudio/menuPost.cpp
+@@ -262,6 +262,19 @@ void CMainWindow::on_actionImageSlicer_triggered()
+ 
+ void CMainWindow::on_actionVolumeRender_triggered()
+ {
++#ifdef Q_OS_IOS
++	// iOS port (patch 0024): volume rendering draws through 3D
++	// textures, which the Metal backend does not provide in this
++	// build (patch 0011 made the path a safe no-op). Say so
++	// instead of silently adding a renderer that draws nothing.
++	QMessageBox::information(this, "FEBio Studio",
++		"Volume rendering is not available in the iOS build yet.\n\n"
++		"It renders image volumes through 3D textures, which the Metal "
++		"graphics backend does not provide. Surface and mesh rendering "
++		"are unaffected.");
++	return;
++#endif
++
+ 	// get the document
+ 	CDocument* modelDoc = GetModelDocument();
+ 	CDocument* postDoc = GetPostDocument();

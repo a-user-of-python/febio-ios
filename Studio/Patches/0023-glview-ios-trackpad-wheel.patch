@@ -1,0 +1,21 @@
+diff --git a/FEBioStudio/GLView.cpp b/FEBioStudio/GLView.cpp
+index 3b94c0d..15992b4 100644
+--- a/FEBioStudio/GLView.cpp
++++ b/FEBioStudio/GLView.cpp
+@@ -1190,7 +1190,16 @@ void CGLView::wheelEvent(QWheelEvent* ev)
+ 	Qt::KeyboardModifiers key = ev->modifiers();
+ 	bool balt   = (key & Qt::AltModifier);
+ 	Qt::MouseEventSource eventSource = ev->source();
++#ifdef Q_OS_IOS
++	// iOS (patch 0023): a Magic Keyboard trackpad reports as a
++	// non-synthesized wheel source but delivers continuous pixel
++	// deltas. Only a notched wheel (no pixel delta) belongs in
++	// the discrete-step branch; a trackpad takes the pan branch
++	// below, like synthesized input.
++	if ((eventSource == Qt::MouseEventSource::MouseEventNotSynthesized) && ev->pixelDelta().isNull())
++#else
+ 	if (eventSource == Qt::MouseEventSource::MouseEventNotSynthesized)
++#endif
+ 	{
+ 		int y = ev->angleDelta().y();
+ 		if (y == 0) y = ev->angleDelta().x();
