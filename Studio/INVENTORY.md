@@ -521,10 +521,10 @@ get as close to releasable as possible, ship as GitHub Release
 (hidden_files/rc1-gap-ledger.md). What changed:
 
 - **0003 (revised)** — auto-open sample is now **power-beam.feb**
-  (50×8×8 mm cantilever, −10 mm tip displacement, 20 steps;
-  host-verified: normal termination, max disp 10.2755 mm, max
-  von Mises 0.5618). The iOS block also **seeds the shared
-  Documents folder** on launch (never overwriting): README.txt
+  (50×8×8 mm cantilever; originally −10 mm tip displacement,
+  20 steps — raised to −22 mm / 40 steps by the 0025 round, see
+  below). The iOS block also **seeds the shared Documents
+  folder** on launch (never overwriting user files): README.txt
   (what to copy in, which file types, the STEP note), plus
   copies of both sample models. tension-block.feb remains
   bundled and seeded.
@@ -569,6 +569,31 @@ get as close to releasable as possible, ship as GitHub Release
   it needs 3D textures the Metal backend doesn't provide,
   instead of silently adding a renderer that draws nothing
   (0011 made it crash-free; this makes it honest).
+- **0025** PostDocument.cpp + FEBioStudio.cpp — rc1 device
+  report: the power-beam results opened flat green. Root cause
+  is upstream defaults, not the solve: on a fresh open the
+  color map starts inactive with its data field unset ("(select)"
+  in the Post panel) and the view opens on state 0, where
+  displacement is genuinely zero, so the model renders as flat
+  material color, undeformed. (The color range was never the
+  problem: it defaults to RANGE_DYNAMIC, the displayed state's
+  true min-max; the displacement map was likewise already
+  active at its default scale of 1.0.) iOS-only, fresh opens
+  only (no restored model data): if the opened results carry a
+  displacement field - the same field the model deforms with -
+  Initialize() selects its magnitude (component 6) in the
+  color map, activates the color map, and opens on the last
+  state. Defaults only: field, range, and state remain fully
+  user-changeable, and every value shown is the solver's own.
+  Second hunk: the two bundled samples are app-managed demo
+  content, so a seeded sample whose bytes differ from the
+  bundled copy is refreshed on launch (an upgrade that ships a
+  new demo actually delivers it); user files and the README
+  are never overwritten. Demo model raised at the same time
+  (user request, "add more forces"): power-beam tip drop
+  -10 mm -> -22 mm over 40 steps (44% of the 50 mm length);
+  host-verified NORMAL TERMINATION, max displacement
+  23.378 mm, max von Mises 2.179 (was 10.276 mm / 0.562).
 - **App icon** — the port previously shipped NO iOS icon (only
   the desktop .icns). Original icon set (bending hex-mesh beam
   with a von Mises colormap, drawn for this port) in
@@ -581,7 +606,7 @@ get as close to releasable as possible, ship as GitHub Release
   is not true in the *built* app's plist, or if the rc1
   feature strings ("power-beam.feb", "Open from App Folder",
   "iOS port rc1") are missing from the binary.
-- Patch chain 0001–0024 re-verified to apply in order to a
+- Patch chain 0001–0025 re-verified to apply in order to a
   pristine tree (result byte-identical to the development
   tree).
 

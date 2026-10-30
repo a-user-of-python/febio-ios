@@ -1,0 +1,86 @@
+diff --git a/FEBioStudio/FEBioStudio.cpp b/FEBioStudio/FEBioStudio.cpp
+index 27679d9..9edd344 100644
+--- a/FEBioStudio/FEBioStudio.cpp
++++ b/FEBioStudio/FEBioStudio.cpp
+@@ -501,8 +501,34 @@ int main(int argc, char* argv[])
+ 		for (const char* s : samples)
+ 		{
+ 			QString dst = docs + "/" + s;
++			QString src = appDir + "/" + s;
+ 			if (!QFile::exists(dst))
+-				QFile::copy(appDir + "/" + s, dst);
++			{
++				QFile::copy(src, dst);
++			}
++			else
++			{
++				// Patch 0025: the two bundled samples are app-managed
++				// demo content, not user files. If an upgrade ships a
++				// new version of a sample, replace the stale seeded
++				// copy, so the demo that auto-opens is the demo this
++				// build bundles. Only these two sample names are ever
++				// refreshed; everything else in this folder - the
++				// README and all of the user's own files - is seeded
++				// once and never overwritten.
++				QFile fs(src), fd(dst);
++				if (fs.open(QIODevice::ReadOnly) && fd.open(QIODevice::ReadOnly))
++				{
++					QByteArray bs = fs.readAll();
++					QByteArray bd = fd.readAll();
++					fs.close(); fd.close();
++					if (bs != bd)
++					{
++						QFile::remove(dst);
++						QFile::copy(src, dst);
++					}
++				}
++			}
+ 		}
+ 
+ 		// Auto-open the showcase sample: the power beam's bending
+diff --git a/FEBioStudio/PostDocument.cpp b/FEBioStudio/PostDocument.cpp
+index b4ff237..e440851 100644
+--- a/FEBioStudio/PostDocument.cpp
++++ b/FEBioStudio/PostDocument.cpp
+@@ -360,6 +360,41 @@ bool CPostDocument::Initialize()
+ 		}
+ 	}
+ 
++#ifdef Q_OS_IOS
++	// iOS port (patch 0025): on a fresh open, show the results the
++	// solver actually computed. Upstream defaults hide them: the
++	// color map starts inactive with no data field selected (the
++	// Post panel shows "(select)"), and the view opens on the first
++	// state, where displacements are still zero - so the model
++	// renders as a flat, undeformed block of material color. If the
++	// file carries a displacement field (the same field the model
++	// itself uses to deform the mesh), select its magnitude in the
++	// color map, switch the color map on, and open on the last
++	// state, where the deformation is largest. Presentation only:
++	// the values are the solver's own - the color range stays on
++	// Studio's dynamic auto-range (the displayed state's true
++	// min-max) and the mesh deforms at the displacement map's
++	// default scale of 1.0. The user can still change the field,
++	// the range, and the state afterwards; a restored session
++	// (valid model data) keeps the user's own settings.
++	if (!m_MD.IsValid() && m_glm && (GetStates() > 0))
++	{
++		int ndisp = m_fem->GetDisplacementField();
++		if (ndisp >= 0)
++		{
++			Post::CGLColorMap* pcmap = m_glm->GetColorMap();
++			if (pcmap)
++			{
++				// component 6 of a vec3 field is its magnitude
++				pcmap->SetEvalField(BUILD_FIELD(DATA_CLASS::NODE_DATA, FIELD_CODE(ndisp), 6));
++				pcmap->Activate(true);
++				m_showLegend = true;
++			}
++			SetActiveState(GetStates() - 1);
++		}
++	}
++#endif
++
+ 	xpltFileReader* reader = dynamic_cast<xpltFileReader*>(GetFileReader());
+ 	if (reader)
+ 	{

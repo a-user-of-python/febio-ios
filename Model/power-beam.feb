@@ -3,8 +3,8 @@
 	<Module type="solid"/>
 	<Control>
 		<analysis type="static"/>
-		<time_steps>20</time_steps>
-		<step_size>0.05</step_size>
+		<time_steps>40</time_steps>
+		<step_size>0.025</step_size>
 		<plot_level>PLOT_MAJOR_ITRS</plot_level>
 		<solver/>
 	</Control>
@@ -7372,7 +7372,7 @@
 		</bc>
 		<bc name="TipDrop" type="prescribed displacement" node_set="Tip">
 			<dof>z</dof>
-			<value lc="1">-10</value>
+			<value lc="1">-22</value>
 			<relative>0</relative>
 		</bc>
 	</Boundary>

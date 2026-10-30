@@ -4,11 +4,17 @@
 A 50 x 8 x 8 mm cantilever beam of neo-Hookean material (same family
 as tension-block.feb: E=10, v=0.3), meshed with 1 mm hex8 elements
 (3200 elements, 4131 nodes). The x=0 face is fully fixed; the x=50
-tip face is prescribed -10.0 mm in z (guided tip: z-dof only, so the
-beam bends freely) over one static step (20 increments). Chosen so
-the bend is unmistakable on screen and the von Mises field has a
-strong gradient: stress peaks at the fixed-end outer fibres and
-falls to zero at the neutral axis and toward the tip.
+tip face is prescribed -22.0 mm in z (guided tip: z-dof only, so the
+beam bends freely) over one static step (40 increments). The tip
+drop is 44% of the beam's length, so the solved beam arcs hard -
+the bend cannot be missed - and the displacement and von Mises
+fields have strong gradients: displacement grows from zero at the
+fixed end to its maximum at the tip, and stress peaks at the
+fixed-end outer fibres and falls to zero at the neutral axis and
+toward the tip. (An earlier -10 mm version solved fine but read as
+nearly straight on the iPad; the load was raised, per the user's
+request for a demo that visibly moves - the deformation shown is
+still exactly what the solver computes, at scale 1.0.)
 
 Node numbering is layer-major (each x cross-section numbered
 consecutively) so the bundled Skyline solver's profile stays narrow
@@ -18,7 +24,7 @@ orders of magnitude slower.
 import os
 
 NX, NY, NZ = 50, 8, 8  # elements per axis (1 mm elements)
-TIP_DROP = -10.0       # prescribed z displacement of the tip face (mm)
+TIP_DROP = -22.0       # prescribed z displacement of the tip face (mm)
 
 
 def nid(i, j, k):
@@ -53,8 +59,8 @@ out.append('<febio_spec version="4.0">')
 out.append('\t<Module type="solid"/>')
 out.append('\t<Control>')
 out.append('\t\t<analysis type="static"/>')
-out.append('\t\t<time_steps>20</time_steps>')
-out.append('\t\t<step_size>0.05</step_size>')
+out.append('\t\t<time_steps>40</time_steps>')
+out.append('\t\t<step_size>0.025</step_size>')
 out.append('\t\t<plot_level>PLOT_MAJOR_ITRS</plot_level>')
 out.append('\t\t<solver/>')
 out.append('\t</Control>')
