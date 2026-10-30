@@ -628,6 +628,30 @@ get as close to releasable as possible, ship as GitHub Release
   the transform (pivot) modes are untouched. The selection
   brush stays modifier-bound deliberately; region mode
   supersedes it for touch.
+- **0030** MainWindow.cpp — device report (round 3): after
+  a relaunch the layout "goes back" to the constructor's
+  proportions — Build panel about half the width, Output
+  about a third of the height, the 3D view a 464x267 pt
+  strip on the 1180x820 pt screen (0018 Log line). Root
+  cause: the 0016/0020 dock sizing ran ONCE, gated on
+  iosLayoutVersion, and trusted the restored state after
+  that — but the saved state's only writer is
+  closeEvent -> writeSettings, which iOS's
+  suspend-then-kill lifecycle does not reliably deliver,
+  so relaunches restored a stale state or fell back to
+  size-hint defaults. iOS-only: the sizing (left group
+  16% / Build 17% of width, bottom group 12% of height,
+  left group full remaining height, Model tree split
+  2/3) now runs on EVERY launch, after restoreGeometry/
+  restoreState, deferred until the window is full-screen
+  (one settle retry if it is not), and the enforced
+  geometry/state are written back to the MainWindow
+  settings group so the next launch's restore starts
+  from the same desktop-monitor proportions. In-session
+  rearrangement still works as on desktop; a relaunch
+  always returns to the enforced layout. No dock or
+  feature removed — proportions only, both workspaces
+  (the Model/Post panels share the one dock layout).
 - **App icon** — the port previously shipped NO iOS icon (only
   the desktop .icns). Original icon set (bending hex-mesh beam
   with a von Mises colormap, drawn for this port) in
@@ -640,9 +664,10 @@ get as close to releasable as possible, ship as GitHub Release
   is not true in the *built* app's plist, or if the rc1
   feature strings ("power-beam.feb", "Open from App Folder",
   "iOS port rc1") are missing from the binary.
-- Patch chain 0001–0027 re-verified to apply in order to a
-  pristine tree (result byte-identical to the development
-  tree).
+- Patch chain 0001–0028 + 0030 re-verified to apply in
+  order to a pristine tree (MainWindow.cpp result
+  byte-identical to the development tree). (0029 is the
+  parallel states/export line, not yet landed.)
 
 **Deliberately NOT in rc1** (full reasoning in the ledger):
 STEP/IGES/BREP import + CAD meshing — Studio's CAD_FEATURES

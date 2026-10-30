@@ -1,0 +1,95 @@
+diff --git a/FEBioStudio/MainWindow.cpp b/FEBioStudio/MainWindow.cpp
+index 910c1c2..d3c2f03 100644
+--- a/FEBioStudio/MainWindow.cpp
++++ b/FEBioStudio/MainWindow.cpp
+@@ -2095,27 +2095,42 @@ void CMainWindow::readSettings()
+ 
+ #ifdef Q_OS_IOS
+ 		// iOS port: the desktop layout proportions leave the 3D
+-		// view a small centre window on the iPad's screen. Once,
+-		// on the first launch of a build carrying a new layout
+-		// version (tracked in settings, so this also applies when
+-		// upgrading an existing install), size the docks from the
+-		// actual window size: side panels ~16-17% of the width,
+-		// output panel ~12% of the height, and the document view
+-		// takes everything else. Deferred until the window has
+-		// its full-screen size. Users can rearrange afterwards,
+-		// as on desktop; their layout is kept from then on.
++		// view a small centre window on the iPad's screen, so on
++		// iOS the docks are sized from the actual window size:
++		// side panels ~16-17% of the width, output panel ~12%
++		// of the height, and the document view takes everything
++		// else. The left tab group (Project/Model/Post/Monitor
++		// are tabified into one group in the left dock area)
++		// also gets its full height — at the restored
++		// proportions it ended mid-screen, cutting the model
++		// tree short with dead space beneath it — and inside
++		// the Model panel the tree's share of its vertical
++		// split is raised.
+ 		//
+-		// Layout version 2 (device fix round 2): the left tab
+-		// group (Project/Model/Post/Monitor are tabified into
+-		// one group in the left dock area) also gets its full
+-		// height — at the restored proportions it ended
+-		// mid-screen, cutting the model tree short with dead
+-		// space beneath it — and inside the Model panel the
+-		// tree's share of its vertical split is raised.
+-		if (settings.value("iosLayoutVersion", 0).toInt() < 2)
+-		{
+-			settings.setValue("iosLayoutVersion", 2);
+-			QTimer::singleShot(0, this, [this]() {
++		// Layout version 3 (device fix round 3): versions 1-2
++		// ran this sizing ONCE, gated on the iosLayoutVersion
++		// flag, and trusted the restored state on every later
++		// launch. That cannot hold on iPad: the only writer
++		// of the saved state is closeEvent -> writeSettings,
++		// and iOS's suspend-then-kill lifecycle does not
++		// reliably deliver a close event, so a relaunch fell
++		// back to the constructor's size-hint layout — the
++		// Build panel claiming about half the width, the
++		// Output panel about a third of the height, and the
++		// 3D view reduced to a 464x267 pt strip on the
++		// 1180x820 pt screen (device Log, patch 0018). The
++		// sizing therefore runs on EVERY launch, after the
++		// restore above, and the enforced geometry/state are
++		// written back, so the next launch's restore starts
++		// from these proportions too. Users can rearrange
++		// within a session, as on desktop; a relaunch always
++		// returns to this desktop-monitor layout. Deferred
++		// until the window has its full-screen size; if the
++		// first pass still sees a not-yet-full-screen window,
++		// one more pass follows once it has settled.
++		settings.setValue("iosLayoutVersion", 3);
++		{
++			auto applyIOSLayout = [this]() {
+ 				QDockWidget* dockLeft  = qobject_cast<QDockWidget*>(ui->projectViewer->parentWidget());
+ 				QDockWidget* dockRight = qobject_cast<QDockWidget*>(ui->buildPanel->parentWidget());
+ 				QDockWidget* dockLog   = qobject_cast<QDockWidget*>(ui->logPanel->parentWidget());
+@@ -2146,6 +2161,27 @@ void CMainWindow::readSettings()
+ 						}
+ 					}
+ 				}
++				// Write the enforced layout back (MainWindow
++				// group, the same keys writeSettings uses), so
++				// the state the next launch restores is this
++				// one. A fresh QSettings: the instance in scope
++				// in readSettings is gone by the time this
++				// deferred pass runs.
++				QSettings iosState(QSettings::IniFormat, QSettings::UserScope,
++					QStringLiteral("MRLSoftware"), QStringLiteral("FEBioStudio"));
++				iosState.beginGroup(QStringLiteral("MainWindow"));
++				iosState.setValue(QStringLiteral("geometry"), saveGeometry());
++				iosState.setValue(QStringLiteral("state"), saveState());
++				iosState.endGroup();
++				iosState.sync();
++			};
++			QTimer::singleShot(0, this, [this, applyIOSLayout]() {
++				applyIOSLayout();
++				// If the window had not reached its full-screen
++				// size yet, redo the pass once it has settled
++				// (every iPad in use is wider than 700 pt).
++				if (width() < 700 || height() < 500)
++					QTimer::singleShot(400, this, applyIOSLayout);
+ 			});
+ 		}
+ #endif
