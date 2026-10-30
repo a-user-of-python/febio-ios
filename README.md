@@ -23,8 +23,28 @@ patches. The full loop works on device: **load a model → run the
 simulation in-process → open the results (.xplt) and inspect them in the
 Post view.**
 
-> **rc1** is the first release candidate: an unsigned IPA attached to the
-> GitHub release of the same name. Sideload it with your preferred tool.
+> **rc1** is the first release candidate: an unsigned IPA distributed
+> through the GitHub release of the same name — see **Download** below.
+> Sideload it with your preferred tool.
+
+## Download
+
+<p>
+  <a href="https://github.com/a-user-of-python/febio-ios/releases/tag/rc1">
+    <img src="https://img.shields.io/badge/Download-rc1%20IPA-orange?style=for-the-badge" alt="Download FEBio Studio for iPad — rc1 IPA">
+  </a>
+</p>
+
+**What you get:** the complete FEBio Studio app with the FEBio 4.13 solver
+built in, as an unsigned IPA (about 21 MB) — load a model, run the
+simulation on the iPad itself, and inspect the results in the Post view.
+
+**What you need:** an iPad and a sideloading method (Signulous, AltStore,
+Sideloadly, or your own developer signing). The release page carries
+plain step-by-step install instructions.
+
+> **Status:** the rc1 IPA is being attached to the release — it will
+> appear under **Assets** on the release page as `FEBioStudio-unsigned.ipa`.
 
 ## What works
 
