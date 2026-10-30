@@ -1,0 +1,81 @@
+diff --git a/FEBioStudio/GLView.cpp b/FEBioStudio/GLView.cpp
+index 15992b4..5f7b994 100644
+--- a/FEBioStudio/GLView.cpp
++++ b/FEBioStudio/GLView.cpp
+@@ -511,6 +511,12 @@ void CGLView::mousePressEvent(QMouseEvent* ev)
+ 	m_pickScale = fromTouch ? 3 : 1;
+ 	if (fromTouch) SelectPivot(x, y);
+ 
++	// Touch selection modes (patch 0027): with "Add to Selection"
++	// on, a touch tap behaves like a Shift-click and adds to the
++	// current selection instead of replacing it.
++	if (fromTouch && m_touchAdd && !m_bctrl)
++		m_select.SetSelectionMode(GLViewSelector::SELECT_ADD);
++
+ 	int pivotMode = m_pivot.GetSelectionMode();
+ 
+ 	if (but == Qt::LeftButton)
+@@ -541,6 +547,14 @@ void CGLView::mousePressEvent(QMouseEvent* ev)
+ 		}
+ 
+ 		if ((m_bshift || m_bctrl) && (pivotMode == PIVOT_SELECTION_MODE::SELECT_NONE)) m_bsel = true;
++
++		// Touch selection modes (patch 0027): with "Drag Selects
++		// Region" on, a one-finger touch drag rubber-band selects
++		// instead of orbiting. m_bsel switches mouseMoveEvent to
++		// the rubber band and mouseReleaseEvent to the region
++		// select — the same machinery a desktop Shift/Ctrl-drag
++		// uses; a plain tap still click-selects (deadzone check).
++		if (fromTouch && m_touchRegion && (pivotMode == PIVOT_SELECTION_MODE::SELECT_NONE)) m_bsel = true;
+ 	}
+ 	else m_bsel = false;
+ 
+@@ -1396,8 +1410,24 @@ void CGLView::OnLongPress()
+ 	m_touchMenu = true; // the release that follows must not select
+ 
+ 	QMenu menu(m_pWnd);
++
++	// Touch selection modes (patch 0027): checkable toggles at
++	// the top of the long-press menu. A triggered checkable
++	// action flips its own checked state while the menu is up,
++	// so the modes are read back after exec() returns.
++	QAction* addAction = menu.addAction("Add to Selection");
++	addAction->setCheckable(true);
++	addAction->setChecked(m_touchAdd);
++	QAction* regionAction = menu.addAction("Drag Selects Region");
++	regionAction->setCheckable(true);
++	regionAction->setChecked(m_touchRegion);
++	menu.addSeparator();
++
+ 	m_pWnd->BuildContextMenu(menu);
+ 	menu.exec(mapToGlobal(m_touchPressPos.toPoint()));
++
++	m_touchAdd = addAction->isChecked();
++	m_touchRegion = regionAction->isChecked();
+ }
+ 
+ bool CGLView::gestureEvent(QNativeGestureEvent* ev)
+diff --git a/FEBioStudio/GLView.h b/FEBioStudio/GLView.h
+index 0c78983..53b8f72 100644
+--- a/FEBioStudio/GLView.h
++++ b/FEBioStudio/GLView.h
+@@ -354,6 +354,19 @@ private:
+ 	bool m_touchMenu  = false;
+ 	int  m_pickScale  = 1;
+ 
++	// --- touch selection modes (patch 0027) ---
++	// Desktop selection leans on keyboard modifiers: Shift-click
++	// ADDS to the selection and Shift/Ctrl-drag rubber-band
++	// selects. A touch-only user has neither, so every tap
++	// REPLACED the selection and every one-finger drag orbited —
++	// building a multi-face/multi-node selection (e.g. the faces
++	// a surface pressure applies to) was impossible. These two
++	// session toggles live in the long-press menu (OnLongPress)
++	// and only affect synthesized-touch presses; mouse and
++	// trackpad input keeps the exact desktop behaviour.
++	bool m_touchAdd    = false; // touch taps add to the selection
++	bool m_touchRegion = false; // one-finger touch drag rubber-bands
++
+ 	// two-point gesture state (previous frame)
+ 	bool    m_touchPrev = false;
+ 	QPointF m_touchC;

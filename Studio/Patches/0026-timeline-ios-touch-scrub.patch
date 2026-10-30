@@ -1,0 +1,200 @@
+diff --git a/FEBioStudio/TimelineWidget.cpp b/FEBioStudio/TimelineWidget.cpp
+index 17c61ba..fd7d8d3 100644
+--- a/FEBioStudio/TimelineWidget.cpp
++++ b/FEBioStudio/TimelineWidget.cpp
+@@ -28,6 +28,9 @@ SOFTWARE.*/
+ #include <QMouseEvent>
+ #include <QPainter>
+ #include <math.h>
++#ifdef Q_OS_IOS
++#include <QTouchEvent>
++#endif
+ 
+ CTimelineWidget::CTimelineWidget(QWidget* parent) : QWidget(parent)
+ {
+@@ -39,6 +42,11 @@ CTimelineWidget::CTimelineWidget(QWidget* parent) : QWidget(parent)
+ 	m_drawRangeRect = false;
+ 
+ 	setMinimumHeight(50);
++
++#ifdef Q_OS_IOS
++	// patch 0026: receive touch events directly (see event()).
++	setAttribute(Qt::WA_AcceptTouchEvents, true);
++#endif
+ }
+ 
+ void CTimelineWidget::clearData()
+@@ -452,6 +460,137 @@ void CTimelineWidget::mouseReleaseEvent(QMouseEvent* ev)
+ 	}
+ }
+ 
++#ifdef Q_OS_IOS
++//-----------------------------------------------------------------------------
++// Touch support (patch 0026, iOS). This widget is custom-painted
++// and only implements mouse handlers; on this iOS build such
++// widgets do not reliably receive the synthesized mouse events a
++// finger drag should produce (the same failure class patches
++// 0012/0017/0022 worked around elsewhere), so a touch drag across
++// the timeline never scrubbed and states past the first few were
++// effectively unreachable. Handle touch directly, mirroring the
++// mouse semantics: a touch in the data area selects the closest
++// state and a drag scrubs through the states; a drag on the
++// range bar's slider (when the bar is shown) pans the visible
++// window. Touches on the range-selector triangles are NOT claimed
++// here, so they keep the legacy synthesized-mouse path.
++//-----------------------------------------------------------------------------
++int CTimelineWidget::closestDataPoint(const QPoint& pt) const
++{
++	int isel = -1;
++	int dmin = 0;
++	for (int i = m_first; i <= m_last; ++i)
++	{
++		int d = abs(pt.x() - m_data[i].pt.x()) + abs(pt.y() - m_data[i].pt.y());
++		if ((isel == -1) || (d < dmin))
++		{
++			isel = i;
++			dmin = d;
++		}
++	}
++	return isel;
++}
++
++bool CTimelineWidget::event(QEvent* e)
++{
++	if ((e->type() != QEvent::TouchBegin) && (e->type() != QEvent::TouchUpdate) &&
++		(e->type() != QEvent::TouchEnd) && (e->type() != QEvent::TouchCancel))
++		return QWidget::event(e);
++
++	QTouchEvent* ev = static_cast<QTouchEvent*>(e);
++	const QList<QTouchEvent::TouchPoint>& pts = ev->points();
++
++	if (e->type() == QEvent::TouchCancel)
++	{
++		m_touchScrub = m_touchPan = false;
++		m_touchSel = -1;
++		ev->accept();
++		return true;
++	}
++
++	if (e->type() == QEvent::TouchEnd)
++	{
++		bool wasActive = (m_touchScrub || m_touchPan);
++		m_touchScrub = m_touchPan = false;
++		m_touchSel = -1;
++		if (wasActive) { ev->accept(); return true; }
++		return QWidget::event(e);
++	}
++
++	// TouchBegin / TouchUpdate: only single-point sequences are
++	// claimed; anything else is swallowed if we own the sequence,
++	// or left to the default handling if we don't.
++	if (pts.size() != 1)
++	{
++		if (m_touchScrub || m_touchPan) { ev->accept(); return true; }
++		return QWidget::event(e);
++	}
++
++	QPoint pt = pts.first().position().toPoint();
++
++	if (e->type() == QEvent::TouchBegin)
++	{
++		if (m_data.empty() == false)
++		{
++			// the range-selector triangles keep the legacy path
++			if (m_leftBox.contains(pt) || m_rightBox.contains(pt))
++				return QWidget::event(e);
++
++			if (m_drawRangeRect && m_slideRect.contains(pt))
++			{
++				m_touchPan = true;
++				m_touchPrev = pt;
++				ev->accept();
++				return true;
++			}
++
++			if (m_dataRect.contains(pt))
++			{
++				m_touchScrub = true;
++				m_touchPrev = pt;
++				m_touchSel = closestDataPoint(pt);
++				if (m_touchSel != -1) emit pointClicked(m_touchSel);
++				ev->accept();
++				return true;
++			}
++		}
++		return QWidget::event(e);
++	}
++
++	// TouchUpdate
++	if (m_touchPan)
++	{
++		int dx = pt.x() - m_touchPrev.x();
++		double dataRange = m_dataMax - m_dataMin;
++		double W = (double)m_rangeRect.width();
++		if ((dx != 0) && (dataRange > 0) && (W != 0))
++		{
++			double dt = dx * dataRange / W;
++			panTimeRange(-dt);
++			update();
++		}
++		m_touchPrev = pt;
++		ev->accept();
++		return true;
++	}
++
++	if (m_touchScrub)
++	{
++		int isel = closestDataPoint(pt);
++		if ((isel != -1) && (isel != m_touchSel))
++		{
++			m_touchSel = isel;
++			emit pointClicked(isel);
++		}
++		m_touchPrev = pt;
++		ev->accept();
++		return true;
++	}
++
++	return QWidget::event(e);
++}
++#endif
++
+ void CTimelineWidget::wheelEvent(QWheelEvent* ev)
+ {
+ 	bool scrollUp = (ev->pixelDelta().y() < 0) || (ev->angleDelta().y() < 0);
+diff --git a/FEBioStudio/TimelineWidget.h b/FEBioStudio/TimelineWidget.h
+index bf8f09c..6e67ad8 100644
+--- a/FEBioStudio/TimelineWidget.h
++++ b/FEBioStudio/TimelineWidget.h
+@@ -61,6 +61,9 @@ protected:
+ 	void mouseMoveEvent(QMouseEvent* ev);
+ 	void mouseReleaseEvent(QMouseEvent* ev);
+ 	void wheelEvent(QWheelEvent* ev) override;
++#ifdef Q_OS_IOS
++	bool event(QEvent* ev) override;
++#endif
+ 
+ signals:
+ 	void pointClicked(int n);
+@@ -70,6 +73,9 @@ private:
+ 	void addPoint(double x, double y, int flag = 0);
+ 	double getscale(double fmin, double fmax);
+ 	void panTimeRange(double dt);
++#ifdef Q_OS_IOS
++	int closestDataPoint(const QPoint& pt) const;
++#endif
+ 
+ private:
+ 	void drawDataBar(QPainter& painter);
+@@ -89,4 +95,11 @@ private:
+ 	int		m_ndrag;
+ 	QPoint	m_prevPt;
+ 	bool	m_drawRangeRect;
++#ifdef Q_OS_IOS
++	// touch state (patch 0026)
++	bool	m_touchScrub = false;
++	bool	m_touchPan = false;
++	int		m_touchSel = -1;
++	QPoint	m_touchPrev;
++#endif
+ };

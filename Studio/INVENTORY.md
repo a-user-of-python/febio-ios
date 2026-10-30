@@ -594,6 +594,40 @@ get as close to releasable as possible, ship as GitHub Release
   -10 mm -> -22 mm over 40 steps (44% of the 50 mm length);
   host-verified NORMAL TERMINATION, max displacement
   23.378 mm, max von Mises 2.179 (was 10.276 mm / 0.562).
+- **0026** TimelineWidget.h/.cpp — device report: in the Post
+  view only about the first 8 of the power-beam's 21 states
+  were reachable; the timeline never scrubbed by touch.
+  CTimelineWidget is custom-painted and implements only mouse
+  handlers, and on this iOS build such widgets do not reliably
+  receive synthesized mouse drags (the failure class behind
+  0012/0017/0022). iOS-only: the widget now accepts touch
+  events and handles them directly, mirroring the mouse
+  semantics - a touch in the data area selects the closest
+  state and a drag scrubs through all states; a drag on the
+  range bar's slider (when shown) pans the visible window.
+  Touches on the range-selector triangles are deliberately
+  not claimed, so they keep the legacy path. Prev/next,
+  first/last, the state spinbox, and playback are untouched.
+- **0027** GLView.h/.cpp — forces-on-faces workflow audit:
+  the add-load/BC chain (Physics menu + model-tree menus,
+  CDlgAddPhysicsItem, Assign current selection, in-process
+  run) is intact on iOS, but its first link was not: desktop
+  selection is modifier-driven (Shift-click adds to the
+  selection, Shift/Ctrl-drag rubber-band selects) and touch
+  has no modifiers, so every tap replaced the selection and
+  every one-finger drag orbited — a multi-face selection for
+  a surface pressure, or a multi-node one for a nodal load,
+  could not be built by touch at all. Two session toggles at
+  the top of the viewport long-press menu (0012): "Add to
+  Selection" (a touch tap selects with SELECT_ADD, like a
+  Shift-click) and "Drag Selects Region" (a one-finger touch
+  drag drives the existing rubber-band/region-select
+  machinery instead of orbiting; a plain tap still
+  click-selects). Only synthesized-touch presses are
+  affected — mouse and trackpad keep desktop behaviour, and
+  the transform (pivot) modes are untouched. The selection
+  brush stays modifier-bound deliberately; region mode
+  supersedes it for touch.
 - **App icon** — the port previously shipped NO iOS icon (only
   the desktop .icns). Original icon set (bending hex-mesh beam
   with a von Mises colormap, drawn for this port) in
@@ -606,7 +640,7 @@ get as close to releasable as possible, ship as GitHub Release
   is not true in the *built* app's plist, or if the rc1
   feature strings ("power-beam.feb", "Open from App Folder",
   "iOS port rc1") are missing from the binary.
-- Patch chain 0001–0025 re-verified to apply in order to a
+- Patch chain 0001–0027 re-verified to apply in order to a
   pristine tree (result byte-identical to the development
   tree).
 
