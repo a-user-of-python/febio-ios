@@ -162,6 +162,37 @@ done
 mkdir -p "$SRC/iOS"
 cp "$ROOT/Studio/iOS/Info.plist" "$SRC/iOS/Info.plist"
 
+# ------------------------------------------------------------- TetGen
+# iOS port (patch 0034): Studio's TetGen mesher needs an external
+# libtet + tetgen.h (FindDependencies.cmake). Build libtet.a for
+# iOS arm64 from the sources vendored in Studio/TetGen (TetGen 1.5,
+# from the libigl/tetgen mirror; AGPLv3 — see Studio/TetGen/LICENSE
+# and INVENTORY.md) and hand both to the configure below via
+# TETGEN_INC / TETGEN_LIB_DIR with USE_TETGEN=ON, so MeshTools
+# compiles with TETLIBRARY defined. Without it the mesher class is
+# registered but its Apply() is a stub that returns 0 — an imported
+# surface skin could never be filled into a volume mesh.
+# predicates.cxx is compiled -O0 on purpose: its exact-arithmetic
+# predicates must not be optimized aggressively (upstream makefile
+# does the same).
+echo "== building TetGen library (iOS arm64, patch 0034)"
+TETGEN_SRC="$ROOT/Studio/TetGen"
+TETGEN_OUT="$WORK/tetgen"
+rm -rf "$TETGEN_OUT"
+mkdir -p "$TETGEN_OUT/include" "$TETGEN_OUT/lib" "$TETGEN_OUT/obj"
+IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+xcrun --sdk iphoneos clang++ -target arm64-apple-ios17.0 -isysroot "$IOS_SDK" \
+	-DTETLIBRARY -I"$TETGEN_SRC" -O0 \
+	-c "$TETGEN_SRC/predicates.cxx" -o "$TETGEN_OUT/obj/predicates.o"
+xcrun --sdk iphoneos clang++ -target arm64-apple-ios17.0 -isysroot "$IOS_SDK" \
+	-DTETLIBRARY -I"$TETGEN_SRC" -O2 \
+	-c "$TETGEN_SRC/tetgen.cxx" -o "$TETGEN_OUT/obj/tetgen.o"
+xcrun --sdk iphoneos libtool -static -o "$TETGEN_OUT/lib/libtet.a" \
+	"$TETGEN_OUT/obj/predicates.o" "$TETGEN_OUT/obj/tetgen.o"
+cp "$TETGEN_SRC/tetgen.h" "$TETGEN_OUT/include/tetgen.h"
+lipo -info "$TETGEN_OUT/lib/libtet.a" | grep -q "arm64" || { echo "ERROR: libtet.a is not arm64" >&2; exit 1; }
+echo "   libtet.a (arm64) ready: $TETGEN_OUT/lib/libtet.a"
+
 # ---------------------------------------------------------- configure
 echo "== configuring FEBio Studio for iOS arm64 (Qt flags variant $QT_FLAGS_MODE)"
 QT_PREFIX_FLAGS=()
@@ -181,7 +212,9 @@ cmake -S "$SRC" -B "$BLD" -G Ninja \
 	-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH \
 	-DSET_DEVCOMMIT=OFF \
 	-DUSE_MMG=OFF \
-	-DUSE_TETGEN=OFF \
+	-DUSE_TETGEN=ON \
+	-DTETGEN_INC="$TETGEN_OUT/include" \
+	-DTETGEN_LIB_DIR="$TETGEN_OUT/lib" \
 	-DCAD_FEATURES=OFF \
 	-DUSE_SSH=OFF \
 	-DMODEL_REPO=OFF \
@@ -249,6 +282,14 @@ for key in UIFileSharingEnabled LSSupportsOpeningDocumentsInPlace UIRequiresFull
 		exit 1
 	fi
 done
+# TetGen (patch 0034) must actually be linked in: this banner string
+# only exists in the binary when libtet.a made it into the app.
+if grep -q "Delaunizing vertices" "$WORK/binary-strings.txt"; then
+\techo "   TetGen library: linked (patch 0034)"
+else
+\techo "ERROR: TetGen strings missing from binary — libtet.a did not link" >&2
+\texit 1
+fi
 # rc1 feature strings must be present in the binary.
 for s in "power-beam.feb" "Open from App Folder" "iOS port rc1"; do
 	if grep -q "$s" "$WORK/binary-strings.txt"; then

@@ -652,6 +652,89 @@ get as close to releasable as possible, ship as GitHub Release
   always returns to the enforced layout. No dock or
   feature removed — proportions only, both workspaces
   (the Model/Post panels share the one dock layout).
+- **0032** PostLib/FESTLimport.h/.cpp — device report
+  (2026-10-30): a Shapr3D-exported STL dropped into the app
+  folder was rejected with "First line must be solid
+  definition." Root cause is a dispatch split, not a missing
+  reader: the app-folder dialog's "Open" button routes
+  through CMainWindow::OpenFile, whose extension chain sends
+  .stl to the POST reader (Post::FESTLimport) — and that
+  reader is ASCII-only, upstream and here (its Load opens the
+  file once in text mode and fails the first line). The
+  geometry reader behind "Import Geometry" (MeshIO
+  STLimport) already had an ASCII->binary fallback upstream
+  and was never broken — host-verified. (Error-string
+  forensics: errf appends, but FileReader::Open resets the
+  error string, so a reader that retries shows only its last
+  error; the single "First line" line in the device dialog
+  is FESTLimport's fingerprint.) iOS-only: FESTLimport now
+  tries a binary read first. Detection is SIZE-MATH-FIRST —
+  the file is binary only if its size is exactly
+  84 + 50 x (little-endian uint32 triangle count at offset
+  80) — never by first word, because some binary headers
+  legitimately start with "solid". On a size mismatch no
+  error is recorded and the original ASCII path runs
+  byte-identically, so ASCII files and malformed files
+  behave (and fail) exactly as before. Host-verified by
+  driving the real reader code: ASCII, binary with plain
+  header, and binary with a "solid"-prefixed header all
+  import to the same mesh (8 nodes / 12 elements for the
+  test cube, no residual error string); a truncated binary
+  and a garbage file fail cleanly with the legacy error.
+- **0033** FEBioStudio/menuFile.cpp + MeshIO/ObjImport.cpp —
+  device report (2026-10-30): "I can't import obj files."
+  The OBJ importer was never missing: ObjImport is compiled
+  in (globbed with MeshIO) and registered for "obj" in the
+  CreateFileReader registry, it is listed in the 0021
+  dialog, and its parser handles Shapr3D-flavoured OBJ
+  (v/vt/vn lines, f v/vt/vn triples, multiple named
+  objects/groups) — host-verified through the real
+  ObjImport::Load (13 nodes / 18 faces on the test file).
+  The break was the 0021 dialog itself: its "Open" button
+  routes through CMainWindow::OpenFile, whose extension
+  chain has NO route for registry-only geometry formats —
+  it falls through and silently does nothing (double-click
+  takes the same dead path). iOS-only: in
+  on_actionAppFolder_triggered, the registry-only formats
+  (obj, ply, dxf, nas, unv, cdb, msh, byu, surf, hmascii,
+  mphtxt, mesh, ele, elem, raw, pvo) now route through
+  ImportFiles for both buttons. Same patch, parser
+  hardening found by the same host tests: OBJ's negative
+  (relative) vertex indices were stored raw, producing
+  out-of-range node ids in the built mesh; they are now
+  converted to absolute indices against the vertices read
+  so far, per the OBJ spec.
+- **0034** Build script + Studio/TetGen/ — device report
+  (2026-10-30): an imported part "has only 12 triangles"
+  (a box skin: 2 triangles per flat face — geometrically
+  correct) and, being a hollow surface with the port's
+  TetGen/MMG switched off, could not be filled into a
+  volume mesh for a solid run. The TetGen mesher class
+  (MeshTools/FETetGenMesher) was present and registered
+  all along, but without the TETLIBRARY compile definition
+  its Apply() is a stub that returns 0. TetGen 1.5 sources
+  (tetgen.h, tetgen.cxx, predicates.cxx — from the
+  libigl/tetgen mirror of the official release;
+  sha256 in the build ledger) are vendored in
+  Studio/TetGen WITH their license: TetGen is AGPLv3.
+  That is acceptable for this personal sideload build,
+  but it is a real license change for the app binary and
+  is recorded here deliberately — do not redistribute the
+  app without honoring the AGPL. The build script now
+  compiles libtet.a for iOS arm64 (predicates.cxx at -O0,
+  as upstream's makefile prescribes for its exact
+  arithmetic), passes USE_TETGEN=ON with TETGEN_INC /
+  TETGEN_LIB_DIR to the Studio configure, and fails the
+  build if TetGen's banner string is absent from the
+  binary. Host-verified at the library level with the
+  mesher's own switch construction: the 12-triangle cube
+  skin tetrahedralizes to 6 tets / 8 points with total
+  volume exactly 1.0 (unit cube), and with the mesher's
+  element-size cap to 104 tets / 43 points, all volumes
+  positive, all indices in range. MMG remains off.
+- Patch chain 0001–0034 re-verified to apply in order to
+  a pristine tree; the 0032/0033 results are byte-identical
+  to the files exercised by the host reader harness.
 - **App icon** — the port previously shipped NO iOS icon (only
   the desktop .icns). Original icon set (bending hex-mesh beam
   with a von Mises colormap, drawn for this port) in

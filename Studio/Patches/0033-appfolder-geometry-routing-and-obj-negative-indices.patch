@@ -1,0 +1,54 @@
+diff --git a/FEBioStudio/menuFile.cpp b/FEBioStudio/menuFile.cpp
+index 290b822..fbb0645 100644
+--- a/FEBioStudio/menuFile.cpp
++++ b/FEBioStudio/menuFile.cpp
+@@ -376,6 +376,26 @@ void CMainWindow::on_actionAppFolder_triggered()
+ 		}
+ 	}
+ 
++	// iOS port (patch 0033): the formats below can only be read
++	// through the geometry-import registry (CreateFileReader in
++	// ImportFiles). CMainWindow::OpenFile — the desktop dispatch
++	// behind the "Open" button — has no route for them: it falls
++	// through its extension chain and silently does nothing, so
++	// these files appeared to "not import" at all (device report:
++	// .obj). Route them through ImportFiles for both buttons.
++	static const char* geomExts[] = {
++		"obj", "ply", "dxf", "nas", "unv", "cdb", "msh", "byu", "surf",
++		"hmascii", "mphtxt", "mesh", "ele", "elem", "raw", "pvo"
++	};
++	for (const char* g : geomExts)
++	{
++		if (ext == g)
++		{
++			ImportFiles(QStringList(path));
++			return;
++		}
++	}
++
+ 	if (r == 2) ImportFiles(QStringList(path));
+ 	else OpenFile(path, false);
+ }
+diff --git a/MeshIO/ObjImport.cpp b/MeshIO/ObjImport.cpp
+index 38c8742..71296bc 100644
+--- a/MeshIO/ObjImport.cpp
++++ b/MeshIO/ObjImport.cpp
+@@ -91,6 +91,18 @@ bool ObjImport::Load(const char* szfile)
+ 			ObjImport::Face f;
+ 			if (parseFace(f, ch))
+ 			{
++#if defined(Q_OS_IOS) || defined(__APPLE__)
++				// iOS port (patch 0033): the OBJ format also allows
++				// negative (relative) vertex indices, where -1 is the
++				// most recently defined vertex. Convert them to
++				// absolute indices using the vertices read so far.
++				// Upstream stores them raw, which produces invalid
++				// negative node ids in the mesh built below.
++				for (int j = 0; j < 3; ++j)
++				{
++					if (f.node[j] < 0) f.node[j] = (int)m_vert.size() + f.node[j] + 1;
++				}
++#endif
+ 				m_face.push_back(f);
+ 			}
+ 		}

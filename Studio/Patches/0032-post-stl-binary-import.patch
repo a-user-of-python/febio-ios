@@ -1,0 +1,145 @@
+diff --git a/PostLib/FESTLimport.h b/PostLib/FESTLimport.h
+index bbc402f..a8116a5 100644
+--- a/PostLib/FESTLimport.h
++++ b/PostLib/FESTLimport.h
+@@ -52,6 +52,15 @@ protected:
+ 	void build_mesh();
+ 	int find_node(vec3f& r, const double eps = 1e-12);
+ 
++#if defined(Q_OS_IOS) || defined(__APPLE__)
++	// iOS port (patch 0032): binary STL support. Returns 1 when the
++	// file was read as a binary STL, 0 when it is not a binary STL
++	// (no error recorded), and -1 when it looked binary but reading
++	// failed (error recorded).
++	int read_binary(const char* szfile);
++	bool read_facet(FACET& f);
++#endif
++
+ protected:
+ 	std::list<FACET>	m_Face;
+ 	std::vector<vec3f>	m_Node;
+diff --git a/PostLib/FESTLimport.cpp b/PostLib/FESTLimport.cpp
+index b3fe41a..4b020b0 100644
+--- a/PostLib/FESTLimport.cpp
++++ b/PostLib/FESTLimport.cpp
+@@ -69,6 +69,24 @@ bool FESTLimport::Load(const char* szfile)
+ 	m_fem->Clear();
+ 	m_nline = 0;
+ 
++#if defined(Q_OS_IOS) || defined(__APPLE__)
++	// iOS port (patch 0032): most CAD tools (Shapr3D included) export
++	// BINARY STL, which the ASCII reader below rejects with "First
++	// line must be solid definition." Try the binary format first.
++	// Detection is by size math only (see read_binary), never by the
++	// first word: some binary STL headers legitimately start with
++	// the word "solid". If the file is not a binary STL, control
++	// falls through to the original ASCII reader, unchanged.
++	int binResult = read_binary(szfile);
++	if (binResult > 0)
++	{
++		// build the nodes
++		build_mesh();
++		return true;
++	}
++	if (binResult < 0) return false; // error already recorded
++#endif
++
+ 	// try to open the file
+ 	if (Open(szfile, "rt") == false) return errf("Failed opening file %s.", szfile);
+ 
+@@ -126,6 +144,95 @@ bool FESTLimport::Load(const char* szfile)
+ 	return true;
+ }
+ 
++#if defined(Q_OS_IOS) || defined(__APPLE__)
++//-----------------------------------------------------------------------------
++// iOS port (patch 0032): read one binary STL facet (normal, three
++// vertices, attribute byte count). The normal is not stored by this
++// reader, so it is read and discarded.
++bool FESTLimport::read_facet(FACET& f)
++{
++	float nrm[3];
++	if (fread(nrm, sizeof(float), 3, m_fp) != 3) return false;
++	for (int i = 0; i < 3; ++i)
++	{
++		float c[3];
++		if (fread(c, sizeof(float), 3, m_fp) != 3) return false;
++		f.r[i].x = c[0];
++		f.r[i].y = c[1];
++		f.r[i].z = c[2];
++	}
++	unsigned short att;
++	if (fread(&att, sizeof(att), 1, m_fp) != 1) return false;
++	return true;
++}
++
++//-----------------------------------------------------------------------------
++// iOS port (patch 0032): try to read the file as a binary STL.
++// A binary STL is an 80-byte header, a little-endian uint32 triangle
++// count, and 50 bytes per triangle. The file is only accepted as
++// binary when its size matches that layout EXACTLY
++// (size == 84 + 50 * count). Anything else is not binary: return 0
++// without recording an error so the ASCII reader can have its say.
++int FESTLimport::read_binary(const char* szfile)
++{
++	// try to open the file
++	if (Open(szfile, "rb") == false) return 0;
++
++	// get the file size
++	fseek(m_fp, 0, SEEK_END);
++	long fileSize = ftell(m_fp);
++	fseek(m_fp, 0, SEEK_SET);
++	if (fileSize < 84)
++	{
++		Close();
++		return 0;
++	}
++
++	// read the header and the triangle count
++	unsigned char hdr[84] = { 0 };
++	if (fread(hdr, 1, 84, m_fp) != 84)
++	{
++		Close();
++		return 0;
++	}
++	unsigned int numtri = (unsigned int)hdr[80]
++		| ((unsigned int)hdr[81] << 8)
++		| ((unsigned int)hdr[82] << 16)
++		| ((unsigned int)hdr[83] << 24);
++
++	// size-math validation: the file must be exactly as large as
++	// its triangle count says, no more and no less
++	if ((numtri == 0) || (84 + 50LL * (long long)numtri != (long long)fileSize))
++	{
++		Close();
++		return 0;
++	}
++
++	// clear the list
++	m_Face.clear();
++
++	// read all the triangles
++	FACET face;
++	for (unsigned int i = 0; i < numtri; ++i)
++	{
++		if (read_facet(face) == false)
++		{
++			errf("Error encountered reading triangle data.");
++			Close();
++			return -1;
++		}
++
++		// add the facet to the list
++		m_Face.push_back(face);
++	}
++
++	// close the file
++	Close();
++
++	return 1;
++}
++#endif
++
+ void FESTLimport::build_mesh()
+ {
+ 	int i;
