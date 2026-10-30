@@ -1,0 +1,123 @@
+diff --git a/FEBioStudio/FEBioThread.cpp b/FEBioStudio/FEBioThread.cpp
+--- a/FEBioStudio/FEBioThread.cpp
++++ b/FEBioStudio/FEBioThread.cpp
+@@ -33,6 +33,7 @@
+ #include <QFileInfo>
+ #ifdef Q_OS_IOS
+ #include <QFile>
++#include <QTextStream>
+ #endif
+ #include "FEBioStudy.h"
+ using namespace std;
+@@ -138,10 +139,18 @@
+ 	// file requests 40 steps stores only 21 states, while every
+ 	// host-side check of the import -> export -> solve -> read path
+ 	// (including the exact FEBio release this app links) stores 41.
+-	// Log the three facts that locate the loss: what the exported job
+-	// file actually asks for, how many steps the solver actually
++	// Collect the three facts that locate the loss: what the exported
++	// job file actually asks for, how many steps the solver actually
+ 	// took, and how large the plot file came out. Read-only; this
+ 	// changes nothing about the run itself.
++	//
++	// Delivery channels (patch 0031): the 0029 build sent these lines
++	// only through appendLog, which lands in the Output panel -- the
++	// Log panel the user reads is fed separately and never showed
++	// them. So the lines are now also (a) appended to the job's own
++	// .log file, (b) written to DIAG-0029.txt in the job folder, and
++	// (c) relayed into the Log panel by CFEBioJobManager::onRunFinished.
++	QString diagExport, diagResult;
+ 	{
+ 		QFile febFile(QString::fromStdString(m_job->GetFEBFileName()));
+ 		if (febFile.open(QIODevice::ReadOnly | QIODevice::Text))
+@@ -156,16 +165,16 @@
+ 				if (j < 0) return QStringLiteral("(absent)");
+ 				return febText.mid(i, j - i).trimmed();
+ 			};
+-			QString diag = QStringLiteral("[0029-DIAG] export: time_steps=%1 step_size=%2 plot_stride=%3 plot_level=%4 time_stepper=%5 step_section=%6\n")
++			diagExport = QStringLiteral("[0029-DIAG] export: time_steps=%1 step_size=%2 plot_stride=%3 plot_level=%4 time_stepper=%5 step_section=%6")
+ 				.arg(tagValue(QStringLiteral("<time_steps>"), QStringLiteral("</time_steps>")))
+ 				.arg(tagValue(QStringLiteral("<step_size>"), QStringLiteral("</step_size>")))
+ 				.arg(tagValue(QStringLiteral("<plot_stride>"), QStringLiteral("</plot_stride>")))
+ 				.arg(tagValue(QStringLiteral("<plot_level>"), QStringLiteral("</plot_level>")))
+ 				.arg(febText.contains(QStringLiteral("<time_stepper")) ? QStringLiteral("PRESENT") : QStringLiteral("absent"))
+ 				.arg(febText.contains(QStringLiteral("<Step>")) ? QStringLiteral("present") : QStringLiteral("absent"));
+-			appendLog(diag.toStdString().c_str());
+ 		}
+-		else appendLog("[0029-DIAG] export: could not read job file\n");
++		else diagExport = QStringLiteral("[0029-DIAG] export: could not read job file");
++		appendLog((diagExport + QStringLiteral("\n")).toStdString().c_str());
+ 	}
+ #endif
+ 
+@@ -177,10 +186,30 @@
+ #ifdef Q_OS_IOS
+ 	{
+ 		QFileInfo pltInfo(QString::fromStdString(m_job->GetPlotFileName()));
+-		QString diag = QStringLiteral("[0029-DIAG] result: steps_taken=%1 plot_file_bytes=%2\n")
++		diagResult = QStringLiteral("[0029-DIAG] result: steps_taken=%1 plot_file_bytes=%2")
+ 			.arg((qulonglong) m_job->m_timestepStats.size())
+ 			.arg(pltInfo.exists() ? pltInfo.size() : -1);
+-		appendLog(diag.toStdString().c_str());
++		appendLog((diagResult + QStringLiteral("\n")).toStdString().c_str());
++
++		// persistent copies (see the patch-0031 note above)
++		QString logPath = QString::fromStdString(m_job->GetLogFileName());
++		QString jobDir = QFileInfo(logPath).absolutePath();
++		QFile logFile(logPath);
++		if (logFile.open(QIODevice::Append | QIODevice::Text))
++		{
++			QTextStream ts(&logFile);
++			ts << diagExport << "\n" << diagResult << "\n";
++			logFile.close();
++		}
++		QFile diagFile(jobDir + QStringLiteral("/DIAG-0029.txt"));
++		if (diagFile.open(QIODevice::WriteOnly | QIODevice::Text))
++		{
++			QTextStream ts(&diagFile);
++			ts << "FEBio Studio iOS run diagnostics (patches 0029/0031)\n";
++			ts << "job feb: " << QString::fromStdString(m_job->GetFEBFileName()) << "\n";
++			ts << diagExport << "\n" << diagResult << "\n";
++			diagFile.close();
++		}
+ 	}
+ #endif
+ 
+diff --git a/FEBioStudio/FEBioJobManager.cpp b/FEBioStudio/FEBioJobManager.cpp
+--- a/FEBioStudio/FEBioJobManager.cpp
++++ b/FEBioStudio/FEBioJobManager.cpp
+@@ -47,6 +47,10 @@
+ #include <QProgressBar>
+ #include <fstream>
+ #include "DlgRemoteProgress.h"
++#ifdef Q_OS_IOS
++#include <QFile>
++#include <QFileInfo>
++#endif
+ 
+ 
+ class CFEBioJobManager::Impl
+@@ -242,6 +246,23 @@
+ 		QString logmsg = QString("FEBio job \"%1 \" has finished: %2\n").arg(jobName).arg(sret);
+ 		im->wnd->AddLogEntry(logmsg);
+ 
++#ifdef Q_OS_IOS
++		// iOS (patch 0031): relay the job thread's run diagnostics
++		// (patch 0029) into this Log panel. The thread writes them to
++		// DIAG-0029.txt in the job folder because thread output goes
++		// to the Output panel, not to this Log.
++		{
++			QString diagPath = QFileInfo(QString::fromStdString(job->GetLogFileName())).absolutePath() + QStringLiteral("/DIAG-0029.txt");
++			QFile diagFile(diagPath);
++			if (diagFile.open(QIODevice::ReadOnly | QIODevice::Text))
++			{
++				QString diagText = QString::fromUtf8(diagFile.readAll());
++				diagFile.close();
++				im->wnd->AddLogEntry(diagText);
++			}
++		}
++#endif
++
+ 		CModelDocument* modelDoc = dynamic_cast<CModelDocument*>(job->GetDocument());
+ 		if (modelDoc) modelDoc->AppendChangeLog(logmsg);
+ 		CDlgJobReport dlg(im->wnd);
