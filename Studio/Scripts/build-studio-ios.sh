@@ -285,10 +285,10 @@ done
 # TetGen (patch 0034) must actually be linked in: this banner string
 # only exists in the binary when libtet.a made it into the app.
 if grep -q "Delaunizing vertices" "$WORK/binary-strings.txt"; then
-\techo "   TetGen library: linked (patch 0034)"
+	echo "   TetGen library: linked (patch 0034)"
 else
-\techo "ERROR: TetGen strings missing from binary — libtet.a did not link" >&2
-\texit 1
+	echo "ERROR: TetGen strings missing from binary — libtet.a did not link" >&2
+	exit 1
 fi
 # rc1 feature strings must be present in the binary.
 for s in "power-beam.feb" "Open from App Folder" "iOS port rc1"; do
