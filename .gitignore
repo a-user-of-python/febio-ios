@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Local build scratch (API helpers, logs, downloaded artifacts)
+.build/
+build/
+__pycache__/
+*.py[cod]
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
