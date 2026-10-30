@@ -1,0 +1,71 @@
+diff --git a/FEBioStudio/FEBioThread.cpp b/FEBioStudio/FEBioThread.cpp
+--- a/FEBioStudio/FEBioThread.cpp
++++ b/FEBioStudio/FEBioThread.cpp
+@@ -31,6 +31,9 @@
+ #include <FEBioRun/FEBioRun.h>
+ #include <string>
+ #include <QFileInfo>
++#ifdef Q_OS_IOS
++#include <QFile>
++#endif
+ #include "FEBioStudy.h"
+ using namespace std;
+ 
+@@ -130,11 +133,57 @@
+ 	Cmd.replace("$(Filename)", fileName);
+ 	string cmd = Cmd.toStdString();
+ 
++#ifdef Q_OS_IOS
++	// iOS diagnostic (patch 0029): on device, a run of a model whose
++	// file requests 40 steps stores only 21 states, while every
++	// host-side check of the import -> export -> solve -> read path
++	// (including the exact FEBio release this app links) stores 41.
++	// Log the three facts that locate the loss: what the exported job
++	// file actually asks for, how many steps the solver actually
++	// took, and how large the plot file came out. Read-only; this
++	// changes nothing about the run itself.
++	{
++		QFile febFile(QString::fromStdString(m_job->GetFEBFileName()));
++		if (febFile.open(QIODevice::ReadOnly | QIODevice::Text))
++		{
++			QString febText = QString::fromUtf8(febFile.readAll());
++			febFile.close();
++			auto tagValue = [&febText](const QString& openTag, const QString& closeTag) -> QString {
++				int i = febText.indexOf(openTag);
++				if (i < 0) return QStringLiteral("(absent)");
++				i += openTag.length();
++				int j = febText.indexOf(closeTag, i);
++				if (j < 0) return QStringLiteral("(absent)");
++				return febText.mid(i, j - i).trimmed();
++			};
++			QString diag = QStringLiteral("[0029-DIAG] export: time_steps=%1 step_size=%2 plot_stride=%3 plot_level=%4 time_stepper=%5 step_section=%6\n")
++				.arg(tagValue(QStringLiteral("<time_steps>"), QStringLiteral("</time_steps>")))
++				.arg(tagValue(QStringLiteral("<step_size>"), QStringLiteral("</step_size>")))
++				.arg(tagValue(QStringLiteral("<plot_stride>"), QStringLiteral("</plot_stride>")))
++				.arg(tagValue(QStringLiteral("<plot_level>"), QStringLiteral("</plot_level>")))
++				.arg(febText.contains(QStringLiteral("<time_stepper")) ? QStringLiteral("PRESENT") : QStringLiteral("absent"))
++				.arg(febText.contains(QStringLiteral("<Step>")) ? QStringLiteral("present") : QStringLiteral("absent"));
++			appendLog(diag.toStdString().c_str());
++		}
++		else appendLog("[0029-DIAG] export: could not read job file\n");
++	}
++#endif
++
+ 	// go!
+ 	FEBioThreadOutput threadOutput(this);
+ 	FEBioThreadProgress progressTracker(m_job);
+ 	int n = FEBio::runModel(cmd, &threadOutput, &progressTracker, m_job);
+ 
++#ifdef Q_OS_IOS
++	{
++		QFileInfo pltInfo(QString::fromStdString(m_job->GetPlotFileName()));
++		QString diag = QStringLiteral("[0029-DIAG] result: steps_taken=%1 plot_file_bytes=%2\n")
++			.arg((qulonglong) m_job->m_timestepStats.size())
++			.arg(pltInfo.exists() ? pltInfo.size() : -1);
++		appendLog(diag.toStdString().c_str());
++	}
++#endif
++
+ 	emit resultsReady(n, QProcess::ExitStatus::NormalExit);
+ }
+ 
