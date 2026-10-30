@@ -1,0 +1,273 @@
+diff --git a/FEBioStudio/PostDocument.cpp b/FEBioStudio/PostDocument.cpp
+index e440851..83b2e55 100644
+--- a/FEBioStudio/PostDocument.cpp
++++ b/FEBioStudio/PostDocument.cpp
+@@ -360,41 +360,6 @@ bool CPostDocument::Initialize()
+ 		}
+ 	}
+ 
+-#ifdef Q_OS_IOS
+-	// iOS port (patch 0025): on a fresh open, show the results the
+-	// solver actually computed. Upstream defaults hide them: the
+-	// color map starts inactive with no data field selected (the
+-	// Post panel shows "(select)"), and the view opens on the first
+-	// state, where displacements are still zero - so the model
+-	// renders as a flat, undeformed block of material color. If the
+-	// file carries a displacement field (the same field the model
+-	// itself uses to deform the mesh), select its magnitude in the
+-	// color map, switch the color map on, and open on the last
+-	// state, where the deformation is largest. Presentation only:
+-	// the values are the solver's own - the color range stays on
+-	// Studio's dynamic auto-range (the displayed state's true
+-	// min-max) and the mesh deforms at the displacement map's
+-	// default scale of 1.0. The user can still change the field,
+-	// the range, and the state afterwards; a restored session
+-	// (valid model data) keeps the user's own settings.
+-	if (!m_MD.IsValid() && m_glm && (GetStates() > 0))
+-	{
+-		int ndisp = m_fem->GetDisplacementField();
+-		if (ndisp >= 0)
+-		{
+-			Post::CGLColorMap* pcmap = m_glm->GetColorMap();
+-			if (pcmap)
+-			{
+-				// component 6 of a vec3 field is its magnitude
+-				pcmap->SetEvalField(BUILD_FIELD(DATA_CLASS::NODE_DATA, FIELD_CODE(ndisp), 6));
+-				pcmap->Activate(true);
+-				m_showLegend = true;
+-			}
+-			SetActiveState(GetStates() - 1);
+-		}
+-	}
+-#endif
+-
+ 	xpltFileReader* reader = dynamic_cast<xpltFileReader*>(GetFileReader());
+ 	if (reader)
+ 	{
+@@ -406,6 +371,82 @@ bool CPostDocument::Initialize()
+ 		}
+ 	}
+ 
++#ifdef Q_OS_IOS
++	// iOS port (patch 0028): results-presentation defaults, applied
++	// at the very end of Initialize so they hold on EVERY path that
++	// produces a Post document - file open, job results, and the
++	// app-folder open all finish loading through this function -
++	// and after the same-session restore above (ModelData::WriteData)
++	// has run.
++	//
++	// Patch 0025 placed these defaults earlier, gated on a fresh
++	// document and keyed off FEPostModel::GetDisplacementField().
++	// On device the beam bent (deformation worked) but the Post
++	// panel still showed "(select)" and the surface rendered flat:
++	// the eval field never got set on the path the user took. These
++	// defaults therefore do not depend on the model's
++	// displacement-field index at all: they look the displacement
++	// field up in the data manager - the same list the Color Map
++	// panel offers - and build the eval-field value from the
++	// field's own stored id, exactly as the panel's field selector
++	// does when a user picks "displacement Magnitude" by hand.
++	//
++	// Defaults only: a valid field the user (or a restored session)
++	// actually chose is never replaced. The defaults fire when the
++	// colour map has no usable field - never set, or the restore
++	// fallback for an unset stored field, which parks the map on
++	// field 0 while inactive - or when the map is inactive, in
++	// which case an existing field choice is kept and only the map
++	// is switched on. Presentation only: colours stay on Studio's
++	// dynamic auto-range (the displayed state's true min-max) and
++	// deformation stays at scale 1.0 - the solver's real values.
++	if (m_glm && (GetStates() > 0))
++	{
++		Post::FEDataManager* pdm = m_fem->GetDataManager();
++		Post::CGLColorMap* pcmap = m_glm->GetColorMap();
++		if (pdm && pcmap)
++		{
++			int nfield = pcmap->GetEvalField();
++			bool bFieldSet = (nfield >= 0) && pdm->IsValid(nfield);
++
++			// find the displacement field in the data manager:
++			// a node-data field named "displacement"
++			int nDispCode = -1;
++			int nd = pdm->FindDataField("displacement");
++			if (nd >= 0)
++			{
++				Post::FEDataFieldPtr pdf = pdm->DataField(nd);
++				if (pdm->IsValid(pdf) && ((*pdf)->DataClass() == NODE_DATA))
++					nDispCode = (*pdf)->GetFieldID();
++			}
++
++			if (!bFieldSet && (nDispCode >= 0))
++			{
++				// component 6 of a vec3 field is its magnitude -
++				// the same value the panel's selector stores
++				pcmap->SetEvalField((nDispCode & ~0xFF) | 6);
++				bFieldSet = true;
++			}
++			if (bFieldSet)
++			{
++				if (!pcmap->IsActive()) pcmap->Activate(true);
++				m_showLegend = true;
++			}
++
++			// the deformation map needs the same field; set it if
++			// the model does not have one yet
++			if ((nDispCode >= 0) && (m_fem->GetDisplacementField() < 0))
++				m_fem->SetDisplacementField(nDispCode);
++
++			// fresh documents open on the final state, where the
++			// deformation is largest; a restored session keeps the
++			// state it stored
++			if (!m_MD.IsValid() && (GetStates() > 1))
++				SetActiveState(GetStates() - 1);
++		}
++	}
++#endif
++
+ 	UpdateFEModel(true);
+ 
+ 	return true;
+diff --git a/FEBioStudio/TimelineWidget.cpp b/FEBioStudio/TimelineWidget.cpp
+index fd7d8d3..c958fb7 100644
+--- a/FEBioStudio/TimelineWidget.cpp
++++ b/FEBioStudio/TimelineWidget.cpp
+@@ -62,6 +62,13 @@ void CTimelineWidget::setSelection(int i)
+ 	{
+ 		if ((i >= m_first) && (i <= m_last)) m_nselect = i;
+ 	}
++#ifdef Q_OS_IOS
++	// patch 0028: the visible window follows the selection, paging
++	// by whole windows, so stepping or scrubbing past the last
++	// visible state reveals the next page instead of stopping at
++	// the window's edge as if the data had ended.
++	pageWindowToSelection();
++#endif
+ 	update();
+ }
+ 
+@@ -491,6 +498,64 @@ int CTimelineWidget::closestDataPoint(const QPoint& pt) const
+ 	return isel;
+ }
+ 
++int CTimelineWidget::closestDataPointByTime(double t) const
++{
++	int isel = -1;
++	double dmin = 0;
++	for (int i = m_first; i <= m_last; ++i)
++	{
++		double d = fabs(t - m_data[i].ptf.x());
++		if ((isel == -1) || (d < dmin))
++		{
++			isel = i;
++			dmin = d;
++		}
++	}
++	return isel;
++}
++
++//-----------------------------------------------------------------------------
++// Patch 0028 (iOS): window-follows-selection paging. The widget shows a
++// window [m_tmin, m_tmax] of the full time range; points outside the
++// window are drawn off-canvas, so a selection that moves past the
++// window's edge (prev/next buttons, first/last, the state spinbox, a
++// scrub, or the playback playhead - the timeline panel routes all of
++// them through setSelection) used to leave the selected state
++// invisible and made the window's edge indistinguishable from the end
++// of the data. When the selected state's time falls outside the
++// window, shift the window by a whole number of window widths - a
++// page, not a nudge - until the selection is visible, clamped to the
++// data range (panTimeRange clamps). Only the window changes: never
++// the selection and never any value. The range bar's slider is
++// recomputed from (m_tmin, m_tmax) against the full range on every
++// paint (drawRangeBar), so after a page jump it still shows the
++// window's true position and size within the whole.
++void CTimelineWidget::pageWindowToSelection()
++{
++	if (m_data.empty() || (m_nselect < 0)) return;
++
++	double W = m_tmax - m_tmin;
++	double range = m_dataMax - m_dataMin;
++	if ((W <= 0) || (range <= 0) || (W >= range)) return;
++
++	double t = m_data[m_nselect].ptf.x();
++	if ((t >= m_tmin) && (t <= m_tmax)) return;
++
++	if (t > m_tmax)
++	{
++		int pages = (int)ceil((t - m_tmax) / W);
++		if (pages < 1) pages = 1;
++		panTimeRange(-pages * W);
++	}
++	else
++	{
++		int pages = (int)ceil((m_tmin - t) / W);
++		if (pages < 1) pages = 1;
++		panTimeRange(pages * W);
++	}
++	m_tinc = getscale(m_tmin, m_tmax);
++}
++
+ bool CTimelineWidget::event(QEvent* e)
+ {
+ 	if ((e->type() != QEvent::TouchBegin) && (e->type() != QEvent::TouchUpdate) &&
+@@ -576,6 +641,47 @@ bool CTimelineWidget::event(QEvent* e)
+ 
+ 	if (m_touchScrub)
+ 	{
++		// Patch 0028: edge carry. When the finger is at/past the data
++		// area's edge while the last (first) visible state is
++		// selected and more states exist beyond the window, page the
++		// window by a full window width and reselect through the new
++		// window - by time, since the points' pixel positions are
++		// only recomputed on the next paint. Without this, a scrub
++		// stops at the window's edge and looks exactly like the end
++		// of the data; the only correct full stop is the true
++		// first/last state.
++		bool bCarried = false;
++		if ((m_touchSel >= 0) && (m_touchSel < m_last) &&
++			(pt.x() >= m_dataRect.right()) && (m_tmax < m_dataMax) &&
++			(m_data[m_touchSel + 1].ptf.x() > m_tmax))
++		{
++			panTimeRange(-(m_tmax - m_tmin));
++			bCarried = true;
++		}
++		else if ((m_touchSel > m_first) && (m_touchSel >= 0) &&
++			(pt.x() <= m_dataRect.left()) && (m_tmin > m_dataMin) &&
++			(m_data[m_touchSel - 1].ptf.x() < m_tmin))
++		{
++			panTimeRange(m_tmax - m_tmin);
++			bCarried = true;
++		}
++		if (bCarried)
++		{
++			m_tinc = getscale(m_tmin, m_tmax);
++			double W = m_tmax - m_tmin;
++			double t = m_tmin + ((double)(pt.x() - m_dataRect.left()) / (double)m_dataRect.width()) * W;
++			int isel = closestDataPointByTime(t);
++			if ((isel != -1) && (isel != m_touchSel))
++			{
++				m_touchSel = isel;
++				emit pointClicked(isel);
++			}
++			m_touchPrev = pt;
++			update();
++			ev->accept();
++			return true;
++		}
++
+ 		int isel = closestDataPoint(pt);
+ 		if ((isel != -1) && (isel != m_touchSel))
+ 		{
+diff --git a/FEBioStudio/TimelineWidget.h b/FEBioStudio/TimelineWidget.h
+index 6e67ad8..2494497 100644
+--- a/FEBioStudio/TimelineWidget.h
++++ b/FEBioStudio/TimelineWidget.h
+@@ -75,6 +75,8 @@ private:
+ 	void panTimeRange(double dt);
+ #ifdef Q_OS_IOS
+ 	int closestDataPoint(const QPoint& pt) const;
++	int closestDataPointByTime(double t) const;
++	void pageWindowToSelection();
+ #endif
+ 
+ private:
